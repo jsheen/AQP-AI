@@ -45,6 +45,7 @@ import de.fhpotsdam.unfolding.providers.Microsoft;
 @SuppressWarnings("serial")
 public class Simulator extends PApplet {
 
+	
 	static UnfoldingMap map;
 	static Location arequipaLocation = null; // central location so that the map
 												// could reorganize itself
