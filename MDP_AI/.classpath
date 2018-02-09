@@ -15,6 +15,8 @@
 	<classpathentry kind="lib" path="lib/json4processing.jar"/>
 	<classpathentry kind="lib" path="lib/libTUIO.jar"/>
 	<classpathentry kind="lib" path="lib/unfolding.0.9.6.jar"/>
+	<classpathentry kind="lib" path="lib/DelaunayTriangulator-1.0.3.jar"/>
+	<classpathentry kind="lib" path="lib/guava-12.0.jar"/>
 	<classpathentry kind="con" path="org.eclipse.jdt.junit.JUNIT_CONTAINER/4"/>
 	<classpathentry kind="output" path="build"/>
 </classpath>
