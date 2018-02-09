@@ -14,19 +14,20 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+
 import javax.swing.ImageIcon;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 
-import org.jdelaunay.delaunay.ConstrainedMesh;
-import org.jdelaunay.delaunay.error.DelaunayError;
-import org.jdelaunay.delaunay.geometries.DPoint;
-import org.jdelaunay.delaunay.geometries.DTriangle;
 import org.jdelaunay.delaunay.BoundaryTriangle;
 import org.jdelaunay.delaunay.Point;
+
+import madCreator.delaunay.*;
+import madCreator.delaunay.Triangulation.InvalidVertexException;
 
 import de.fhpotsdam.unfolding.UnfoldingMap;
 import de.fhpotsdam.unfolding.geo.Location;
@@ -52,7 +53,8 @@ public class Simulator extends PApplet {
 	static int pause = 0; // how long algorithm should pause between decisions
 
 	static int nSims = 100;
-	static double[][] sims = new double[100][14]; // int array to store simulation results
+	static double[][] sims = new double[100][14]; // int array to store
+													// simulation results
 
 	static UnfoldingMap map;
 	static Location arequipaLocation = null; // central location so that the map
@@ -80,10 +82,10 @@ public class Simulator extends PApplet {
 	static double totalDistance = 0; // total distance traveled for end game
 										// output
 	static LabeledMarker prevMark = null; // previous marker that was selected
-	static List<DPoint> triPointList = new ArrayList<DPoint>();
+	static List<Vertex> triPointList = new ArrayList<Vertex>();
 
 	// creates house markers
-	public static void readHouseGPS() throws IOException, DelaunayError {
+	public static void readHouseGPS() throws IOException {
 		File fileName = new File("forSimulator.csv");
 		BufferedReader br = new BufferedReader(new FileReader(fileName));
 
@@ -191,16 +193,16 @@ public class Simulator extends PApplet {
 			}
 		}
 		// left bottom corner
-		triPointList.add(new DPoint(minLon.doubleValue() - 0.0001, minLat.doubleValue() - 0.0001, 0));
+		triPointList.add(new Vertex(minLon.doubleValue() - 0.0001, minLat.doubleValue() - 0.0001));
 
 		// left top corner
-		triPointList.add(new DPoint(minLon.doubleValue() - 0.0001, maxLat.doubleValue() + 0.0001, 0));
+		triPointList.add(new Vertex(minLon.doubleValue() - 0.0001, maxLat.doubleValue() + 0.0001));
 
 		// right bottom corner
-		triPointList.add(new DPoint(maxLon.doubleValue() + 0.0001, minLat.doubleValue() - 0.0001, 0));
+		triPointList.add(new Vertex(maxLon.doubleValue() + 0.0001, minLat.doubleValue() - 0.0001));
 
 		// right top corner
-		triPointList.add(new DPoint(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001, 0));
+		triPointList.add(new Vertex(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001));
 
 		br.close();
 	}
@@ -287,11 +289,7 @@ public class Simulator extends PApplet {
 			size(1200, 750, P2D);
 			// load all houses
 			try {
-				try {
-					readHouseGPS();
-				} catch (DelaunayError e) {
-					e.printStackTrace();
-				}
+				readHouseGPS();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -300,11 +298,7 @@ public class Simulator extends PApplet {
 		} else {
 			// load all houses
 			try {
-				try {
-					readHouseGPS();
-				} catch (DelaunayError e) {
-					e.printStackTrace();
-				}
+				readHouseGPS();
 			} catch (IOException e) {
 				e.printStackTrace();
 			}
@@ -350,71 +344,60 @@ public class Simulator extends PApplet {
 				}
 			}
 		}
+
 		// end game
 		if (distanceLeftToTravel < 0) {
 			// display triangulation
-			ConstrainedMesh mesh = new ConstrainedMesh();
+			Triangulation delaunayMesh = new Triangulation();
+			delaunayMesh.addAllVertices(triPointList);
 			try {
-				mesh.setPoints(triPointList);
-				System.out.println(mesh.toString());
-				System.out.println(new HashSet<DPoint>(triPointList).size());
-				System.out.println(triPointList.toString());
-				System.out.println(triPointList.size());
-				mesh.processDelaunay();
-			} catch (DelaunayError e) {
+				delaunayMesh.triangulate();
+			} catch (InvalidVertexException e) {
 				e.printStackTrace();
 			}
-			List<DTriangle> triList = mesh.getTriangleList();
-			System.out.println("triList" + triList.size());
-			Iterator<DTriangle> triIter = triList.iterator();
-			List<BoundaryTriangle> triPolyList = new ArrayList<BoundaryTriangle>();
-			while (triIter.hasNext()) {
-				DTriangle triToDisplay = triIter.next();
-				List<DPoint> vertices = triToDisplay.getPoints();
+			
+			LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
 
-				// for counting
-				Point firstPnt = new Point(vertices.get(0).getX(), vertices.get(0).getY());
-				Point secondPnt = new Point(vertices.get(1).getX(), vertices.get(1).getY());
-				Point thirdPnt = new Point(vertices.get(2).getX(), vertices.get(2).getY());
-				Point[] pointArr = new Point[3];
-				pointArr[0] = firstPnt;
-				pointArr[1] = secondPnt;
-				pointArr[2] = thirdPnt;
-				triPolyList.add(new BoundaryTriangle(pointArr));
-
-				// for display of triangulation
-				Location first = new Location(vertices.get(0).getY(), vertices.get(0).getX());
-				Location second = new Location(vertices.get(1).getY(), vertices.get(1).getX());
-				Location third = new Location(vertices.get(2).getY(), vertices.get(2).getX());
-
-				SimpleLinesMarker edgeOne = new SimpleLinesMarker(first, second);
-				SimpleLinesMarker edgeTwo = new SimpleLinesMarker(second, third);
-				SimpleLinesMarker edgeThree = new SimpleLinesMarker(third, first);
-
-				edgeOne.setColor(-16776961);
-				edgeOne.setStrokeWeight(3);
-				edgeTwo.setColor(-16776961);
-				edgeTwo.setStrokeWeight(3);
-				edgeThree.setColor(-16776961);
-				edgeThree.setStrokeWeight(3);
-
-				map.addMarker(edgeOne);
-				map.addMarker(edgeTwo);
-				map.addMarker(edgeThree);
-			}
+			// for display of triangulation
 			if (displayGUI) {
-				map.draw();
+				for(Triangle triToDisplay : triList) {
+					Location first = new Location(triToDisplay.a.y, triToDisplay.a.x);
+					Location second = new Location(triToDisplay.b.y, triToDisplay.b.x);
+					Location third = new Location(triToDisplay.c.y, triToDisplay.c.x);
+
+					SimpleLinesMarker edgeOne = new SimpleLinesMarker(first, second);
+					SimpleLinesMarker edgeTwo = new SimpleLinesMarker(second, third);
+					SimpleLinesMarker edgeThree = new SimpleLinesMarker(third, first);
+
+					edgeOne.setColor(-16776961);
+					edgeOne.setStrokeWeight(2);
+					edgeTwo.setColor(-16776961);
+					edgeTwo.setStrokeWeight(2);
+					edgeThree.setColor(-16776961);
+					edgeThree.setStrokeWeight(2);
+
+					map.addMarker(edgeOne);
+					map.addMarker(edgeTwo);
+					map.addMarker(edgeThree);
+				}
 			}
 
-			System.out.println("triPoly" + triPolyList.size());
-			// check triangle information
-			int[] cntHouses = new int[triPolyList.size()];
+			// get triangle information
+			int[] cntHouses = new int[triList.size()];
 
 			int cnt = 0;
 			int total = 0;
-			for (BoundaryTriangle t : triPolyList) {
+			for (Triangle t : triList) {
 				for (Marker cntHouse : houseMarkers) {
-					if (t.contains(new Point((double) cntHouse.getLocation().getLon(),
+					// make boundaryTriangle
+					Point[] vertices = new Point[3];
+					
+				    vertices[0] = new Point(t.a.x, t.a.y);
+					vertices[1] = new Point(t.b.x, t.b.y);
+					vertices[2] = new Point(t.c.x, t.c.y);
+					BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
+					
+					if (boundTri.contains(new Point((double) cntHouse.getLocation().getLon(),
 							(double) cntHouse.getLocation().getLat()))) {
 						cntHouses[cnt] = cntHouses[cnt] + 1;
 						total++;
@@ -428,6 +411,7 @@ public class Simulator extends PApplet {
 				listCntHouses.add(0, a);
 			}
 			int maxValue = listCntHouses.get(0);
+			
 			Integer averageTri = total / cntHouses.length;
 
 			// tally up score
@@ -485,9 +469,9 @@ public class Simulator extends PApplet {
 						"END OF SIMULATION", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options,
 						options[0]);
 			}
-			
+
 			if (nSims > 0) {
-			    // save results in table
+				// save results in table
 				sims[nSims - 1][0] = houseMarkers.size();
 				sims[nSims - 1][1] = cntSearch;
 				sims[nSims - 1][2] = cntInfestSearch;
@@ -502,43 +486,40 @@ public class Simulator extends PApplet {
 				sims[nSims - 1][11] = averageTri;
 				sims[nSims - 1][12] = distanceLeftToTravelSave;
 				sims[nSims - 1][13] = sims.length;
-				
+
 				// set number of simulations subtracting one
 				nSims = nSims - 1;
-				
-				// reset everything
-				houseMarkers = new ArrayList<SimplePointMarker>();
-				arequipaLocation = null;
-				setup();
-				slm = new ArrayList<SimpleLinesMarker>();
-				distanceLeftToTravel = distanceLeftToTravelSave;
-				totalDistance = 0;
-				prevMark = null;
-				triPointList = new ArrayList<DPoint>();
-				
+
+				// reset everything for next simulation
 				if (nSims > 0) {
-					try {
-						updateFunction();
-					} catch (DelaunayError e) {
-						e.printStackTrace();
-					}
+					houseMarkers = new ArrayList<SimplePointMarker>();
+					arequipaLocation = null;
+					setup();
+					slm = new ArrayList<SimpleLinesMarker>();
+					distanceLeftToTravel = distanceLeftToTravelSave;
+					totalDistance = 0;
+					prevMark = null;
+					triPointList = new ArrayList<Vertex>();
+					
+					// invoke next simulation
+					updateFunction();
+				} else {
+					// write csv
+					writeCsvFile("results.csv");
+					
+					distanceLeftToTravel = 0;
 				}
-			} else {
-				distanceLeftToTravel = 0;
-				
-				// write csv
-				writeCsvFile("results.csv");
 			}
-		}
+		} 
 	}
-	
+
 	public static void writeCsvFile(String fileName) {
-		//Delimiter used in CSV file
+		// Delimiter used in CSV file
 		final String NEW_LINE_SEPARATOR = ";";
 
 		try {
 			FileWriter fileWriter = new FileWriter(fileName, true);
-			
+
 			// get average
 			double toAdd0 = 0;
 			double toAdd1 = 0;
@@ -554,7 +535,7 @@ public class Simulator extends PApplet {
 			double toAdd11 = 0;
 			double toAdd12 = 0;
 			double toAdd13 = 0;
-			for (int i=0; i < sims.length; i++) {
+			for (int i = 0; i < sims.length; i++) {
 				toAdd0 = toAdd0 + sims[i][0];
 				toAdd1 = toAdd1 + sims[i][1];
 				toAdd2 = toAdd2 + sims[i][2];
@@ -584,7 +565,7 @@ public class Simulator extends PApplet {
 			toAdd11 = toAdd11 / sims.length;
 			toAdd12 = toAdd12 / sims.length;
 			toAdd13 = toAdd13 / sims.length;
-			
+
 			// write all results
 			fileWriter.append("\n");
 			fileWriter.append("randomMethod");
@@ -616,7 +597,7 @@ public class Simulator extends PApplet {
 			fileWriter.append(String.valueOf(toAdd12));
 			fileWriter.append(NEW_LINE_SEPARATOR);
 			fileWriter.append(String.valueOf(toAdd13));
-			
+
 			fileWriter.flush();
 			fileWriter.close();
 		} catch (IOException e) {
@@ -624,7 +605,7 @@ public class Simulator extends PApplet {
 		}
 	}
 
-	public static void updateFunction() throws DelaunayError {
+	public static void updateFunction() {
 		while (distanceLeftToTravel > 0) {
 			// pause between each decision made
 			try {
@@ -635,8 +616,8 @@ public class Simulator extends PApplet {
 			if (prevMark == null) {
 				SimplePointMarker m = houseMarkers.get(2);
 				prevMark = (LabeledMarker) m;
-				triPointList.add(new DPoint((double) prevMark.getLocation().getLon(),
-						(double) prevMark.getLocation().getLat(), 0));
+				triPointList.add(new Vertex((double) prevMark.getLocation().getLon(),
+						(double) prevMark.getLocation().getLat()));
 			} else {
 				// the previous marker has now been 'clicked'
 				prevMark.searched = true;
@@ -644,8 +625,8 @@ public class Simulator extends PApplet {
 
 				// add point for triangulation, draw function will get the
 				// triangulation and draw it
-				triPointList.add(new DPoint((double) prevMark.getLocation().getLon(),
-						(double) prevMark.getLocation().getLat(), 0));
+				triPointList.add(new Vertex((double) prevMark.getLocation().getLon(),
+						(double) prevMark.getLocation().getLat()));
 
 				// next marker to search (random)
 				LabeledMarker nextU = null;
@@ -673,11 +654,10 @@ public class Simulator extends PApplet {
 					// replace for next loop iteration
 					prevMark.isPrevMark = false;
 					prevMark = nextU;
-				} 
-					
+				}
+
 			}
 		}
-
 	}
 
 	// From the given labeled marker, get the closest marker that is the color given
@@ -716,10 +696,10 @@ public class Simulator extends PApplet {
 				.parseInt(JOptionPane.showInputDialog("How many simulations would you like to do?", "100"));
 		nSims = simsAns;
 		sims = new double[simsAns][14];
-		
+
 		// ask how much distance an inspector can walk in a simulation
-	    int distAns = Integer.parseInt(
-		    JOptionPane.showInputDialog("How much distance can an inspector walk during simulation? (km)", "4"));
+		int distAns = Integer.parseInt(
+				JOptionPane.showInputDialog("How much distance can an inspector walk during simulation? (km)", "4"));
 		distanceLeftToTravelSave = distAns;
 		distanceLeftToTravel = distAns;
 
@@ -749,11 +729,7 @@ public class Simulator extends PApplet {
 		}
 
 		// update function
-		try {
-			updateFunction();
-		} catch (DelaunayError e) {
-			e.printStackTrace();
-		}
+		updateFunction();
 	}
 
 }
