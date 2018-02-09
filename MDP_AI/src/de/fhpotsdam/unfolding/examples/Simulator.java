@@ -7,6 +7,7 @@ import java.awt.Toolkit;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
@@ -45,16 +46,35 @@ import de.fhpotsdam.unfolding.providers.Microsoft;
 @SuppressWarnings("serial")
 public class Simulator extends PApplet {
 
-	
+	static boolean displayGUI = true; // whether or not the GUI should be
+										// displayed
+
+	static int pause = 0; // how long algorithm should pause between decisions
+
+	static int nSims = 100;
+	static double[][] sims = new double[100][14]; // int array to store simulation results
+
 	static UnfoldingMap map;
 	static Location arequipaLocation = null; // central location so that the map
 												// could reorganize itself
-	static List<SimplePointMarker> houseMarkers = new ArrayList<SimplePointMarker>(); // list of all
-																						// houses in the
-																						// search zone
-	static List<SimpleLinesMarker> slm = new ArrayList<SimpleLinesMarker>(); // new marker from the
-																				// UnfoldingMap API
-																				// to mark line
+	static List<SimplePointMarker> houseMarkers = new ArrayList<SimplePointMarker>(); // list
+																						// of
+																						// all
+																						// houses
+																						// in
+																						// the
+																						// search
+																						// zone
+	static List<SimpleLinesMarker> slm = new ArrayList<SimpleLinesMarker>(); // new
+																				// marker
+																				// from
+																				// the
+																				// UnfoldingMap
+																				// API
+																				// to
+																				// mark
+																				// line
+	static double distanceLeftToTravelSave = 4;
 	static double distanceLeftToTravel = 4; // finite time horizon (distance
 											// allowed to travel) (kilometers)
 	static double totalDistance = 0; // total distance traveled for end game
@@ -64,7 +84,7 @@ public class Simulator extends PApplet {
 
 	// creates house markers
 	public static void readHouseGPS() throws IOException, DelaunayError {
-		File fileName = new File("/Users/Justin/Desktop/forSimulator.csv");
+		File fileName = new File("forSimulator.csv");
 		BufferedReader br = new BufferedReader(new FileReader(fileName));
 
 		String currentLine = br.readLine();
@@ -131,10 +151,12 @@ public class Simulator extends PApplet {
 					}
 				}
 
-				// setColor, add to map
-				Marker toAddMarker = marker;
-				toAddMarker.setColor(211);
-				map.addMarker(toAddMarker);
+				if (displayGUI) {
+					// setColor, add to map
+					Marker toAddMarker = marker;
+					toAddMarker.setColor(211);
+					map.addMarker(toAddMarker);
+				}
 
 				// add to list of houses
 				houseMarkers.add(marker);
@@ -169,16 +191,16 @@ public class Simulator extends PApplet {
 			}
 		}
 		// left bottom corner
-		triPointList.add(new DPoint(minLon.doubleValue(), minLat.doubleValue(), 0));
+		triPointList.add(new DPoint(minLon.doubleValue() + 0.1, minLat.doubleValue() + 0.1, 0));
 
 		// left top corner
-		triPointList.add(new DPoint(minLon.doubleValue(), maxLat.doubleValue(), 0));
+		triPointList.add(new DPoint(minLon.doubleValue() + 0.1, maxLat.doubleValue() + 0.1, 0));
 
 		// right bottom corner
-		triPointList.add(new DPoint(maxLon.doubleValue(), minLat.doubleValue(), 0));
+		triPointList.add(new DPoint(maxLon.doubleValue() + 0.1, minLat.doubleValue() + 0.1, 0));
 
 		// right top corner
-		triPointList.add(new DPoint(maxLon.doubleValue(), maxLat.doubleValue(), 0));
+		triPointList.add(new DPoint(maxLon.doubleValue() + 0.1, maxLat.doubleValue() + 0.1, 0));
 
 		br.close();
 	}
@@ -260,73 +282,90 @@ public class Simulator extends PApplet {
 	}
 
 	public void setup() {
-		size(1200, 750, P2D);
 		map = new UnfoldingMap(this, new Microsoft.AerialProvider());
-
-		try {
+		if (displayGUI) {
+			size(1200, 750, P2D);
+			// load all houses
 			try {
-				readHouseGPS();
-			} catch (DelaunayError e) {
+				try {
+					readHouseGPS();
+				} catch (DelaunayError e) {
+					e.printStackTrace();
+				}
+			} catch (IOException e) {
 				e.printStackTrace();
 			}
-		} catch (IOException e) {
-			e.printStackTrace();
+			map.zoomAndPanTo(17, arequipaLocation);
+			MapUtils.createDefaultEventDispatcher(this, map);
+		} else {
+			// load all houses
+			try {
+				try {
+					readHouseGPS();
+				} catch (DelaunayError e) {
+					e.printStackTrace();
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
 		}
-
-		map.zoomAndPanTo(17, arequipaLocation);
-		MapUtils.createDefaultEventDispatcher(this, map);
 	}
 
 	public void draw() {
-		// map has a function to draw itself on the papplet
-		for (SimpleLinesMarker mm : slm) {
-			map.addMarker(mm);
-		}
-		map.draw();
+		if (displayGUI) {
+			// map has a function to draw itself on the papplet
+			for (SimpleLinesMarker mm : slm) {
+				map.addMarker(mm);
+			}
+			map.draw();
 
-		// draw information box
-		for (Marker marker : map.getMarkers()) {
-			if (marker.isSelected()) {
-				fill(255, 255, 255);
-				rect(mouseX - 47, mouseY - 100, 95, 85);
-				fill(0, 0, 0);
-				text("Searched: " + ((LabeledMarker) marker).searched, mouseX - 43, mouseY - 80);
-				text(((LabeledMarker) marker).unicode, mouseX - 43, mouseY - 60);
-				text("Risk Level: " + (((LabeledMarker) marker).category + 1), mouseX - 43, mouseY - 40);
+			// draw information box
+			for (Marker marker : map.getMarkers()) {
+				if (marker.isSelected()) {
+					fill(255, 255, 255);
+					rect(mouseX - 47, mouseY - 100, 95, 85);
+					fill(0, 0, 0);
+					text("Searched: " + ((LabeledMarker) marker).searched, mouseX - 43, mouseY - 80);
+					text(((LabeledMarker) marker).unicode, mouseX - 43, mouseY - 60);
+					text("Risk Level: " + (((LabeledMarker) marker).category + 1), mouseX - 43, mouseY - 40);
+				}
+			}
+
+			// display time
+			fill(255, 255, 255);
+			rect(5, 5, 320, 20);
+			fill(0, 0, 0);
+			text("Distance left to travel (km): " + distanceLeftToTravel, 10, 20);
+
+			// display prevMark information
+			fill(255, 255, 255);
+			rect(5, 30, 153, 20);
+			if (prevMark != null) {
+				if (prevMark.infested) {
+					fill(255, 0, 0);
+					text("FOUND INFESTED HOUSE!", 10, 45);
+				} else {
+					fill(0, 0, 0);
+					text("NOT INFESTED...", 10, 45);
+				}
 			}
 		}
-
-		// display time
-		fill(255, 255, 255);
-		rect(5, 5, 320, 20);
-		fill(0, 0, 0);
-		DecimalFormat df = new DecimalFormat("#.##");
-		text("Distance left to travel (km): " + distanceLeftToTravel, 10, 20);
-
-		// display prevMark information
-		fill(255, 255, 255);
-		rect(5, 30, 153, 20);
-		if (prevMark != null) {
-			if (prevMark.infested) {
-				fill(255, 0, 0);
-				text("FOUND INFESTED HOUSE!", 10, 45);
-			} else {
-				fill(0, 0, 0);
-				text("NOT INFESTED...", 10, 45);
-			}
-		}
-
 		// end game
 		if (distanceLeftToTravel < 0) {
 			// display triangulation
 			ConstrainedMesh mesh = new ConstrainedMesh();
 			try {
 				mesh.setPoints(triPointList);
+				System.out.println(mesh.toString());
+				System.out.println(new HashSet<DPoint>(triPointList).size());
+				System.out.println(triPointList.toString());
+				System.out.println(triPointList.size());
 				mesh.processDelaunay();
 			} catch (DelaunayError e) {
 				e.printStackTrace();
 			}
 			List<DTriangle> triList = mesh.getTriangleList();
+			System.out.println("triList" + triList.size());
 			Iterator<DTriangle> triIter = triList.iterator();
 			List<BoundaryTriangle> triPolyList = new ArrayList<BoundaryTriangle>();
 			while (triIter.hasNext()) {
@@ -352,19 +391,22 @@ public class Simulator extends PApplet {
 				SimpleLinesMarker edgeTwo = new SimpleLinesMarker(second, third);
 				SimpleLinesMarker edgeThree = new SimpleLinesMarker(third, first);
 
-				edgeOne.setColor(color(0, 0, 255));
+				edgeOne.setColor(-16776961);
 				edgeOne.setStrokeWeight(3);
-				edgeTwo.setColor(color(0, 0, 255));
+				edgeTwo.setColor(-16776961);
 				edgeTwo.setStrokeWeight(3);
-				edgeThree.setColor(color(0, 0, 255));
+				edgeThree.setColor(-16776961);
 				edgeThree.setStrokeWeight(3);
 
 				map.addMarker(edgeOne);
 				map.addMarker(edgeTwo);
 				map.addMarker(edgeThree);
 			}
-			map.draw();
+			if (displayGUI) {
+				map.draw();
+			}
 
+			System.out.println("triPoly" + triPolyList.size());
 			// check triangle information
 			int[] cntHouses = new int[triPolyList.size()];
 
@@ -425,22 +467,161 @@ public class Simulator extends PApplet {
 				}
 			}
 
-			Object[] options = { "OK" };
-			JOptionPane.showOptionDialog(null,
-					"Number of houses: " + houseMarkers.size() + "\n" + "Number of houses visited: " + cntSearch
-							+ "\n\n" + "Number of INFESTED houses searched: " + cntInfestSearch + "\n"
-							+ "Number of most high risk houses not searched: " + cntMostHighRiskNotSearched + "\n\n"
-							+ "Number of most high risk houses searched: " + cntMostHighRiskSearched + "\n"
-							+ "Number of high risk houses searched: " + cntHighRiskSearched + "\n"
-							+ "Number of medium risk houses searched: " + cntMedRiskSearched + "\n"
-							+ "Number of low risk houses searched: " + cntLowRiskSearched + "\n"
-							+ "Number of most low risk houses searched: " + cntMostLowRiskSearched + "\n\n"
-							+ "Total distance traveled (kilometers): " + df.format(totalDistance) + "\n\n"
-							+ "Max number of houses in a triangle: " + maxValue + "\n\n"
-							+ "Average number of houses per triangle: " + averageTri,
-					"END OF SIMULATION", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options,
-					options[0]);
-			distanceLeftToTravel = 0;
+			if (displayGUI) {
+				DecimalFormat dfUse = new DecimalFormat("#.##");
+				Object[] options = { "OK" };
+				JOptionPane.showOptionDialog(null,
+						"Number of houses: " + houseMarkers.size() + "\n" + "Number of houses visited: " + cntSearch
+								+ "\n\n" + "Number of INFESTED houses searched: " + cntInfestSearch + "\n"
+								+ "Number of most high risk houses not searched: " + cntMostHighRiskNotSearched + "\n\n"
+								+ "Number of most high risk houses searched: " + cntMostHighRiskSearched + "\n"
+								+ "Number of high risk houses searched: " + cntHighRiskSearched + "\n"
+								+ "Number of medium risk houses searched: " + cntMedRiskSearched + "\n"
+								+ "Number of low risk houses searched: " + cntLowRiskSearched + "\n"
+								+ "Number of most low risk houses searched: " + cntMostLowRiskSearched + "\n\n"
+								+ "Total distance traveled (kilometers): " + dfUse.format(totalDistance) + "\n\n"
+								+ "Max number of houses in a triangle: " + maxValue + "\n\n"
+								+ "Average number of houses per triangle: " + averageTri,
+						"END OF SIMULATION", JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE, null, options,
+						options[0]);
+			}
+			
+			if (nSims > 0) {
+			    // save results in table
+				sims[nSims - 1][0] = houseMarkers.size();
+				sims[nSims - 1][1] = cntSearch;
+				sims[nSims - 1][2] = cntInfestSearch;
+				sims[nSims - 1][3] = cntMostHighRiskNotSearched;
+				sims[nSims - 1][4] = cntMostHighRiskSearched;
+				sims[nSims - 1][5] = cntHighRiskSearched;
+				sims[nSims - 1][6] = cntMedRiskSearched;
+				sims[nSims - 1][7] = cntLowRiskSearched;
+				sims[nSims - 1][8] = cntMostLowRiskSearched;
+				sims[nSims - 1][9] = totalDistance;
+				sims[nSims - 1][10] = maxValue;
+				sims[nSims - 1][11] = averageTri;
+				sims[nSims - 1][12] = distanceLeftToTravelSave;
+				sims[nSims - 1][13] = sims.length;
+				
+				// set number of simulations subtracting one
+				nSims = nSims - 1;
+				
+				// reset everything
+				houseMarkers = new ArrayList<SimplePointMarker>();
+				arequipaLocation = null;
+				setup();
+				slm = new ArrayList<SimpleLinesMarker>();
+				distanceLeftToTravel = distanceLeftToTravelSave;
+				totalDistance = 0;
+				prevMark = null;
+				triPointList = new ArrayList<DPoint>();
+				
+				if (nSims > 0) {
+					try {
+						updateFunction();
+					} catch (DelaunayError e) {
+						e.printStackTrace();
+					}
+				}
+			} else {
+				distanceLeftToTravel = 0;
+				
+				// write csv
+				writeCsvFile("results.csv");
+			}
+		}
+	}
+	
+	public static void writeCsvFile(String fileName) {
+		//Delimiter used in CSV file
+		final String NEW_LINE_SEPARATOR = ";";
+
+		try {
+			FileWriter fileWriter = new FileWriter(fileName, true);
+			
+			// get average
+			double toAdd0 = 0;
+			double toAdd1 = 0;
+			double toAdd2 = 0;
+			double toAdd3 = 0;
+			double toAdd4 = 0;
+			double toAdd5 = 0;
+			double toAdd6 = 0;
+			double toAdd7 = 0;
+			double toAdd8 = 0;
+			double toAdd9 = 0;
+			double toAdd10 = 0;
+			double toAdd11 = 0;
+			double toAdd12 = 0;
+			double toAdd13 = 0;
+			for (int i=0; i < sims.length; i++) {
+				toAdd0 = toAdd0 + sims[i][0];
+				toAdd1 = toAdd1 + sims[i][1];
+				toAdd2 = toAdd2 + sims[i][2];
+				toAdd3 = toAdd3 + sims[i][3];
+				toAdd4 = toAdd4 + sims[i][4];
+				toAdd5 = toAdd5 + sims[i][5];
+				toAdd6 = toAdd6 + sims[i][6];
+				toAdd7 = toAdd7 + sims[i][7];
+				toAdd8 = toAdd8 + sims[i][8];
+				toAdd9 = toAdd9 + sims[i][9];
+				toAdd10 = toAdd10 + sims[i][10];
+				toAdd11 = toAdd11 + sims[i][11];
+				toAdd12 = toAdd12 + sims[i][12];
+				toAdd12 = toAdd12 + sims[i][13];
+				toAdd13 = toAdd13 + sims[i][13];
+			}
+			toAdd0 = toAdd0 / sims.length;
+			toAdd1 = toAdd1 / sims.length;
+			toAdd2 = toAdd2 / sims.length;
+			toAdd3 = toAdd3 / sims.length;
+			toAdd4 = toAdd4 / sims.length;
+			toAdd5 = toAdd5 / sims.length;
+			toAdd6 = toAdd6 / sims.length;
+			toAdd7 = toAdd7 / sims.length;
+			toAdd8 = toAdd8 / sims.length;
+			toAdd9 = toAdd9 / sims.length;
+			toAdd10 = toAdd10 / sims.length;
+			toAdd11 = toAdd11 / sims.length;
+			toAdd12 = toAdd12 / sims.length;
+			toAdd13 = toAdd13 / sims.length;
+			
+			// write all results
+			fileWriter.append("\n");
+			fileWriter.append("randomMethod");
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd0));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd1));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd2));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd3));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd4));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd5));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd6));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd7));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd8));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd9));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd10));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd11));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd12));
+			fileWriter.append(NEW_LINE_SEPARATOR);
+			fileWriter.append(String.valueOf(toAdd13));
+			
+			fileWriter.flush();
+			fileWriter.close();
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
 	}
 
@@ -448,7 +629,7 @@ public class Simulator extends PApplet {
 		while (distanceLeftToTravel > 0) {
 			// pause between each decision made
 			try {
-				Thread.sleep(1000);
+				Thread.sleep(pause);
 			} catch (InterruptedException e) {
 			}
 
@@ -471,7 +652,6 @@ public class Simulator extends PApplet {
 				LabeledMarker nextU = null;
 				int sizeHouseMarkers = houseMarkers.size();
 				Random random = new Random();
-				random.setSeed(1000);
 				nextU = (LabeledMarker) houseMarkers.get(random.nextInt(sizeHouseMarkers));
 				while (nextU.searched) {
 					nextU = (LabeledMarker) houseMarkers.get(random.nextInt(sizeHouseMarkers));
@@ -494,9 +674,11 @@ public class Simulator extends PApplet {
 					// replace for next loop iteration
 					prevMark.isPrevMark = false;
 					prevMark = nextU;
-				}
+				} 
+					
 			}
 		}
+
 	}
 
 	// From the given labeled marker, get the closest marker that is the color given
@@ -517,25 +699,55 @@ public class Simulator extends PApplet {
 	}
 
 	public static void main(String args[]) {
-		// main window
-		PApplet.main(new String[] { Simulator.class.getName() });
-		// title
-		JFrame f = new JFrame();
-		Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-		f.setUndecorated(true);
-		ImageIcon title = new ImageIcon("title.png", "title");
-		JLabel lbl = new JLabel(title);
-		f.getContentPane().add(lbl);
-		f.setSize(title.getIconWidth(), title.getIconHeight());
-		int x = (screenSize.width - f.getSize().width) / 2;
-		int y = (screenSize.height - f.getSize().height) / 2;
-		f.setLocation(x, y);
-		f.setVisible(true);
-		try {
-			Thread.sleep(13000);
-		} catch (InterruptedException e) {
+		// ask if we should display GUI or not
+		int reply = JOptionPane.showConfirmDialog(null, "Display GUI?", "GUI display", JOptionPane.YES_NO_OPTION);
+		if (reply == JOptionPane.YES_OPTION) {
+			displayGUI = true;
+		} else {
+			displayGUI = false;
 		}
-		f.dispose();
+
+		// ask how long the pause should be
+		int pauseAns = Integer.parseInt(
+				JOptionPane.showInputDialog("How long should pauses between decision be? (milliseconds)", "20"));
+		pause = pauseAns;
+
+		// ask how many simulations there should be
+		int simsAns = Integer
+				.parseInt(JOptionPane.showInputDialog("How many simulations would you like to do?", "100"));
+		nSims = simsAns;
+		sims = new double[simsAns][14];
+		
+		// ask how much distance an inspector can walk in a simulation
+	    int distAns = Integer.parseInt(
+		    JOptionPane.showInputDialog("How much distance can an inspector walk during simulation? (km)", "4"));
+		distanceLeftToTravelSave = distAns;
+		distanceLeftToTravel = distAns;
+
+		// main window (also invokes set-up)
+		PApplet.main(new String[] { Simulator.class.getName() });
+
+		// title
+		if (displayGUI == true) {
+			JFrame f = new JFrame();
+			Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+			f.setUndecorated(true);
+			ImageIcon title = new ImageIcon("title.png", "title");
+			JLabel lbl = new JLabel(title);
+			f.getContentPane().add(lbl);
+			f.setSize(title.getIconWidth(), title.getIconHeight());
+			int x = (screenSize.width - f.getSize().width) / 2;
+			int y = (screenSize.height - f.getSize().height) / 2;
+			f.setLocation(x, y);
+			f.setVisible(true);
+			// pause for system to draw all houses before running update
+			// function
+			try {
+				Thread.sleep(13000);
+			} catch (InterruptedException e) {
+			}
+			f.dispose();
+		}
 
 		// update function
 		try {
