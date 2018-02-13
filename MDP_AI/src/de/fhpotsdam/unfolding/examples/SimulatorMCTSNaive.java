@@ -30,6 +30,7 @@ import madCreator.delaunay.*;
 import madCreator.delaunay.Triangulation.InvalidVertexException;
 
 import de.fhpotsdam.unfolding.UnfoldingMap;
+import de.fhpotsdam.unfolding.examples.MCTSTree.Node;
 import de.fhpotsdam.unfolding.geo.Location;
 import de.fhpotsdam.unfolding.marker.Marker;
 import de.fhpotsdam.unfolding.marker.SimpleLinesMarker;
@@ -45,7 +46,7 @@ import de.fhpotsdam.unfolding.providers.Microsoft;
  */
 
 @SuppressWarnings("serial")
-public class Simulator extends PApplet {
+public class SimulatorMCTSNaive extends PApplet {
 
 	static boolean displayGUI = true; // whether or not the GUI should be
 										// displayed
@@ -83,6 +84,10 @@ public class Simulator extends PApplet {
 										// output
 	static LabeledMarker prevMark = null; // previous marker that was selected
 	static List<Vertex> triPointList = new ArrayList<Vertex>();
+	
+	// MCTS tree and constant to be used
+	static MCTSTree tree = null;
+	static double Cp = 1;
 
 	// creates house markers
 	public static void readHouseGPS() throws IOException {
@@ -577,7 +582,7 @@ public class Simulator extends PApplet {
 			for (int j = 0; j < sims.length; j++) {
 				SD = SD + simsSD[j];
 			}
-			Double SD0 = Math.sqrt(Math.pow(SD, 2) / (sims.length - 1));			
+			Double SD0 = Math.sqrt(Math.pow(SD, 2) / (sims.length - 1));
 			
 
 			// write all results
@@ -630,6 +635,7 @@ public class Simulator extends PApplet {
 			if (prevMark == null) {
 				SimplePointMarker m = houseMarkers.get(2);
 				prevMark = (LabeledMarker) m;
+				tree = new MCTSTree();
 			} else {
 				// the previous marker has now been 'clicked'
 				prevMark.searched = true;
@@ -639,9 +645,38 @@ public class Simulator extends PApplet {
 				// triangulation and draw it
 				triPointList.add(new Vertex((double) prevMark.getLocation().getLon(),
 						(double) prevMark.getLocation().getLat()));
+				
+				// add the previous mark  to the tree
+			    tree.addNode(new Node(prevMark));
 
-				// next marker to search (random)
+				// next marker to search (MCTS algorithm)
 				LabeledMarker nextU = null;
+				
+				// Part I: Selection
+				// find the child that maximizes the algorithm, and eventually the leaf
+				while (!tree.curr.isLeaf()) {
+					List<Node> children = tree.getChildrenCurr();
+					int maxChildDex = 0;
+					for (Node child : children) {
+						if (child.getCount() == 0) {
+						   float val = Float.POSITIVE_INFINITY;
+						} else {
+						   float val = (float) (child.getReward() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
+						}
+						
+						
+					}
+				}
+				
+				
+				
+				// Part II: Expansion
+				// Part III: Rollout
+				// Part IV: Update
+				
+				
+				
+				
 				int sizeHouseMarkers = houseMarkers.size();
 				Random random = new Random();
 				random.setSeed(42);
@@ -715,9 +750,14 @@ public class Simulator extends PApplet {
 				JOptionPane.showInputDialog("How much distance can an inspector walk during simulation? (km)", "4"));
 		distanceLeftToTravelSave = distAns;
 		distanceLeftToTravel = distAns;
+		
+		// ask how much distance an inspector can walk in a simulation
+		double toAddCp = Double.parseDouble(
+				JOptionPane.showInputDialog("What should the constant of the UCT algorithm be?", "1"));
+		Cp = toAddCp;
 
 		// main window (also invokes set-up)
-		PApplet.main(new String[] { Simulator.class.getName() });
+		PApplet.main(new String[] { SimulatorMCTSNaive.class.getName() });
 
 		// title
 		if (displayGUI == true) {
