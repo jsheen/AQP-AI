@@ -789,7 +789,7 @@ public class Simulator extends PApplet {
 	}
 
 	public static void main(String args[]) {
-		File fileName = new File(System.getProperty("user.home") + args[0]);
+		File fileName = new File(args[0]);
 		BufferedReader br = null;
 		try {
 			br = new BufferedReader(new FileReader(fileName));
