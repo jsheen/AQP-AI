@@ -563,8 +563,9 @@ public class Simulator extends PApplet {
 		Double average13 = toAdd13 / sims.length;
 
 		String fileName = new String("random" + new Date());
+		System.out.println(fileName);
 		fileName = fileName.replaceAll("\\s+","");
-		fileName = fileName.replaceAll("//",".");
+		fileName = fileName.replaceAll(":","_");
 		File fileToWrite = new File(System.getProperty("user.home") + "/AQP-AI/output/", fileName + ".txt");
 
 		BufferedWriter writer = null;
