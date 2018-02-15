@@ -577,7 +577,6 @@ public class SimulatorMCTSNaive extends PApplet {
 			for (int j = 0; j < sims.length; j++) {
 				SD = SD + simsSD[j];
 			}
-			Double SD0 = Math.sqrt(Math.pow(SD, 2) / (sims.length - 1));
 			
 
 			// write all results
@@ -649,19 +648,19 @@ public class SimulatorMCTSNaive extends PApplet {
 				
 				// Part I: Selection
 				// find the child that maximizes the algorithm, and eventually the leaf
-				while (!tree.curr.isLeaf()) {
-					List<Node> children = tree.getChildrenCurr();
-					int maxChildDex = 0;
-					for (Node child : children) {
-						if (child.getCount() == 0) {
-						   float val = Float.POSITIVE_INFINITY;
-						} else {
-						   float val = (float) (child.getReward() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
-						}
-						
-						
-					}
-				}
+//				while (!tree.curr.isLeaf()) {
+//					List<Node> children = tree.getChildrenCurr();
+//					int maxChildDex = 0;
+//					for (Node child : children) {
+//						if (child.getCount() == 0) {
+//						   float val = Float.POSITIVE_INFINITY;
+//						} else {
+//						   float val = (float) (child.getReward() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
+//						}
+//						
+//						
+//					}
+//				}
 				
 				
 				

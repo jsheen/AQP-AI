@@ -81,6 +81,7 @@ public class Simulator extends PApplet {
 										// output
 	static LabeledMarker prevMark = null; // previous marker that was selected
 	static List<Vertex> triPointList = new ArrayList<Vertex>();
+	static String outputFileName = "error";
 
 	// creates house markers
 	public static void readHouseGPS() throws IOException {
@@ -505,7 +506,7 @@ public class Simulator extends PApplet {
 					updateFunction();
 				} else {
 					// write csv
-					writeTextFile("random");
+					writeTextFile(outputFileName);
 
 					distanceLeftToTravel = 0;
 				}
@@ -513,7 +514,7 @@ public class Simulator extends PApplet {
 		}
 	}
 
-	public static void writeTextFile(String methodUsed) {
+	public static void writeTextFile(String outputFileNameToAdd) {
 
 		// get average
 		double toAdd0 = 0;
@@ -561,7 +562,7 @@ public class Simulator extends PApplet {
 		Double average12 = toAdd12 / sims.length;
 		Double average13 = toAdd13 / sims.length;
 
-		String fileName = new String(methodUsed + new Date());
+		String fileName = new String("random" + new Date());
 		File fileToWrite = new File(System.getProperty("user.home") + "/AQP-AI/output/", fileName + ".txt");
 
 		BufferedWriter writer = null;
@@ -573,7 +574,7 @@ public class Simulator extends PApplet {
 		try {
 
 			// write all results
-			writer.write("Method Used: " + methodUsed);
+			writer.write("Method Used: random");
 			writer.write("\n");
 			writer.write("Number of houses: " + String.valueOf(average0));
 			writer.write("\n");
@@ -790,6 +791,7 @@ public class Simulator extends PApplet {
 
 	public static void main(String args[]) {
 		File fileName = new File(args[0]);
+		outputFileName = args[0];
 		BufferedReader br = null;
 		try {
 			br = new BufferedReader(new FileReader(fileName));
