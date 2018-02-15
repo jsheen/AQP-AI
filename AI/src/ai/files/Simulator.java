@@ -566,7 +566,7 @@ public class Simulator extends PApplet {
 		fileName = fileName.replaceAll("\\s+","");
 		fileName = fileName.replaceAll(":","_");
 		System.out.println(fileName);
-		File fileToWrite = new File(System.getProperty("user.home") + "/AQP-AI/AI/output/", fileName + ".txt");
+		File fileToWrite = new File("output/", fileName + ".txt");
 
 		BufferedWriter writer = null;
 		try {
