@@ -5,6 +5,7 @@ import processing.core.PApplet;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -13,6 +14,7 @@ import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -503,12 +505,111 @@ public class Simulator extends PApplet {
 					updateFunction();
 				} else {
 					// write csv
-					writeCsvFile("results.csv");
+					writeTextFile("random");
 
 					distanceLeftToTravel = 0;
 				}
 			}
 		}
+	}
+
+	public static void writeTextFile(String methodUsed) {
+
+		// get average
+		double toAdd0 = 0;
+		double toAdd1 = 0;
+		double toAdd2 = 0;
+		double toAdd3 = 0;
+		double toAdd4 = 0;
+		double toAdd5 = 0;
+		double toAdd6 = 0;
+		double toAdd7 = 0;
+		double toAdd8 = 0;
+		double toAdd9 = 0;
+		double toAdd10 = 0;
+		double toAdd11 = 0;
+		double toAdd12 = 0;
+		double toAdd13 = 0;
+		for (int i = 0; i < sims.length; i++) {
+			toAdd0 = toAdd0 + sims[i][0];
+			toAdd1 = toAdd1 + sims[i][1];
+			toAdd2 = toAdd2 + sims[i][2];
+			toAdd3 = toAdd3 + sims[i][3];
+			toAdd4 = toAdd4 + sims[i][4];
+			toAdd5 = toAdd5 + sims[i][5];
+			toAdd6 = toAdd6 + sims[i][6];
+			toAdd7 = toAdd7 + sims[i][7];
+			toAdd8 = toAdd8 + sims[i][8];
+			toAdd9 = toAdd9 + sims[i][9];
+			toAdd10 = toAdd10 + sims[i][10];
+			toAdd11 = toAdd11 + sims[i][11];
+			toAdd12 = toAdd12 + sims[i][12];
+			toAdd13 = toAdd13 + sims[i][13];
+		}
+		Double average0 = toAdd0 / sims.length;
+		Double average1 = toAdd1 / sims.length;
+		Double average2 = toAdd2 / sims.length;
+		Double average3 = toAdd3 / sims.length;
+		Double average4 = toAdd4 / sims.length;
+		Double average5 = toAdd5 / sims.length;
+		Double average6 = toAdd6 / sims.length;
+		Double average7 = toAdd7 / sims.length;
+		Double average8 = toAdd8 / sims.length;
+		Double average9 = toAdd9 / sims.length;
+		Double average10 = toAdd10 / sims.length;
+		Double average11 = toAdd11 / sims.length;
+		Double average12 = toAdd12 / sims.length;
+		Double average13 = toAdd13 / sims.length;
+
+		String fileName = new String(methodUsed + new Date());
+		File fileToWrite = new File(System.getProperty("user.home") + "/AQP-AI/output/", fileName + ".txt");
+
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(fileToWrite));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+
+			// write all results
+			writer.write("Method Used: " + methodUsed);
+			writer.write("\n");
+			writer.write("Number of houses: " + String.valueOf(average0));
+			writer.write("\n");
+			writer.write("Number of inspected houses: " + String.valueOf(average1));
+			writer.write("\n");
+			writer.write("Number of inspected houses that were infested: " + String.valueOf(average2));
+			writer.write("\n");
+			writer.write("Number of most high risk houses NOT inspected: " + String.valueOf(average3));
+			writer.write("\n");
+			writer.write("Number of most high risk houses inspected: " + String.valueOf(average4));
+			writer.write("\n");
+			writer.write("Number of high risk houses inspected: " + String.valueOf(average5));
+			writer.write("\n");
+			writer.write("Number of medium risk houses inspected: " + String.valueOf(average6));
+			writer.write("\n");
+			writer.write("Number of low risk houses inspected: " + String.valueOf(average7));
+			writer.write("\n");
+			writer.write("Number of most low risk houses inspected: " + String.valueOf(average8));
+			writer.write("\n");
+			writer.write("Total distance traveled:  " + String.valueOf(average9));
+			writer.write("\n");
+			writer.write("Max number of houses in a triangle: " + String.valueOf(average10));
+			writer.write("\n");
+			writer.write("Average number of houses in a triangle: " + String.valueOf(average11));
+			writer.write("\n");
+			writer.write("Distance given to travel: " + String.valueOf(average12));
+			writer.write("\n");
+			writer.write("Number of simulations: " + String.valueOf(average13));
+		
+			writer.flush();
+			writer.close();
+			System.exit(0);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 	public static void writeCsvFile(String fileName) {
@@ -573,7 +674,6 @@ public class Simulator extends PApplet {
 			for (int j = 0; j < sims.length; j++) {
 				SD = SD + simsSD[j];
 			}
-			Double SD0 = Math.sqrt(Math.pow(SD, 2) / (sims.length - 1));
 
 			// write all results
 			fileWriter.append("\n");
@@ -689,7 +789,7 @@ public class Simulator extends PApplet {
 	}
 
 	public static void main(String args[]) {
-		File fileName = new File(args[1]);
+		File fileName = new File(System.getProperty("user.home") + args[0]);
 		BufferedReader br = null;
 		try {
 			br = new BufferedReader(new FileReader(fileName));
