@@ -8,19 +8,26 @@ public class MCTSTree {
 	Node root = null;
 	Node curr = null;
 	
-	public MCTSTree() {
+	public MCTSTree(Node toAddRoot) {
+		root = toAddRoot;
+		curr = toAddRoot;
 	}
 	
 	public static class Node
 	{
+	   private Node parent = null;
 	   private LabeledMarker house = null;
 	   private int count = 0;
-	   private float reward = 0;
+	   private float sumVals = 0;
+	   private float qVal = 0;
 	   private List<Node> children;
+	   private float dist = 0;
 
-	   public Node(LabeledMarker toAddHouse)
+	   public Node(Node toAddParent, LabeledMarker toAddHouse, float toAddDist)
 	   {
+		  parent = toAddParent;
 	      house = toAddHouse;
+	      dist = toAddDist;
 	   }
 	   
 	   public void addChild(Node toAdd) {
@@ -40,8 +47,12 @@ public class MCTSTree {
 		   return count;
 	   }
 	   
-	   public float getReward() {
-		   return reward;
+	   public float getSumVals() {
+		   return sumVals;
+	   }
+	   
+	   public float getQVal() {
+		   return qVal;
 	   }
 	   
 	   public void addCount() {
@@ -52,8 +63,12 @@ public class MCTSTree {
 		   count = toSetCount;
 	   }
 	   
-	   public void setReward(float toSetReward) {
-		   reward = toSetReward;
+	   public void setSumVals(float toSetSumVal) {
+		   sumVals = toSetSumVal;
+	   }
+	   
+	   public void setQVal(float toSetQVal) {
+		   qVal = toSetQVal;
 	   }
 	   
 	   public LabeledMarker getHouse() {
@@ -67,24 +82,36 @@ public class MCTSTree {
 	   public List<Node> getChildren(){
 		   return children;
 	   }
-	}
-	
-	public void addNode(Node toAdd) {
-		// will add the node to the current node
-		if (root == null) {
-			root = toAdd;
-			curr = toAdd;
-		} else {
-			curr.addChild(toAdd);
-		}
-	}
-	
-	public int getNChildCurr() {
-		// get the number of children of the current node
-		return curr.getNChild();
-	}
-	
-	public List<Node> getChildrenCurr(){
-		return curr.getChildren();
+	   
+	   public void setDist(float toAddDist) {
+		   dist = toAddDist;
+	   }
+	   
+	   public float getDist() {
+		   return dist;
+	   }
+	   
+	   public Node getParent() {
+		   return parent;
+	   }
+	   
+	   public boolean isAncestorHouse(LabeledMarker toCheck) {
+		   if (this.parent == null) {
+			   return false;
+		   } else if (this.house == toCheck) {
+			   return true;
+		   } else {
+			   return this.parent.isAncestorHouse(toCheck);
+		   }
+	   }
+	   
+	   public int getLengthBranch() {
+		   // get number of edges
+		   if (this.parent == null) {
+			   return 1;
+		   } else {
+			   return this.parent.getLengthBranch() + 1;
+		   }
+	   }
 	}
 }

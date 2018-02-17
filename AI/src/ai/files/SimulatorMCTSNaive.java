@@ -5,13 +5,16 @@ import processing.core.PApplet;
 import java.awt.Dimension;
 import java.awt.Toolkit;
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -79,10 +82,12 @@ public class SimulatorMCTSNaive extends PApplet {
 										// output
 	static LabeledMarker prevMark = null; // previous marker that was selected
 	static List<Vertex> triPointList = new ArrayList<Vertex>();
-	
-	// MCTS tree and constant to be used
+	static String outputFileName = "error";
+
+	// MCTS global variables
 	static MCTSTree tree = null;
-	static double Cp = 1;
+	static int Cp = 1;
+	static int nNeighExpand = 1;
 
 	// creates house markers
 	public static void readHouseGPS() throws IOException {
@@ -209,11 +214,11 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	// get closest neighbors helper function
-	public static ArrayList<LabeledMarker> getNeighbors(LabeledMarker m, int nNeigh) {
-		// find the 10 closest markers for each marker
+	public static ArrayList<LabeledMarker> getNeighbors(Node n, int nNeigh) {
+		// find the 'nNeigh' closest markers for each marker
 		HashSet<LabeledMarker> s = new HashSet<LabeledMarker>();
 		for (SimplePointMarker neighbor : houseMarkers) {
-			if (m == neighbor || ((LabeledMarker) neighbor).searched == true) {
+			if (n.getHouse() == neighbor || n.isAncestorHouse((LabeledMarker) neighbor)) {
 				// do nothing, it is the same marker
 				// OR it may have already been searched so do not add
 			} else {
@@ -225,8 +230,8 @@ public class SimulatorMCTSNaive extends PApplet {
 					Marker max = iter.next();
 					while (iter.hasNext()) {
 						Marker compareMax = iter.next();
-						double distanceOld = m.getDistanceTo(max.getLocation());
-						double distanceNew = m.getDistanceTo(compareMax.getLocation());
+						double distanceOld = n.getHouse().getDistanceTo(max.getLocation());
+						double distanceNew = n.getHouse().getDistanceTo(compareMax.getLocation());
 
 						// compare, replace if necessary
 						if (distanceOld > distanceNew) {
@@ -235,8 +240,8 @@ public class SimulatorMCTSNaive extends PApplet {
 					}
 
 					// 2. replace if necessary
-					double distanceMax = m.getDistanceTo(max.getLocation());
-					double distanceNewMax = m.getDistanceTo(neighbor.getLocation());
+					double distanceMax = n.getHouse().getDistanceTo(max.getLocation());
+					double distanceNewMax = n.getHouse().getDistanceTo(neighbor.getLocation());
 
 					if (distanceMax > distanceNewMax) {
 						s.remove(max);
@@ -246,14 +251,14 @@ public class SimulatorMCTSNaive extends PApplet {
 			}
 		}
 
-		// another way for these 10 neighbors again
+		// another sort for these 'nNeigh' neighbors again
 		Iterator<LabeledMarker> iter = s.iterator();
 		ArrayList<LabeledMarker> srtdN = new ArrayList<LabeledMarker>();
 
 		while (iter.hasNext()) {
 			LabeledMarker toAdd = iter.next();
 			for (int j = 0; j < srtdN.size(); j++) {
-				if (toAdd.compareDist(m, srtdN.get(j)) == -1) {
+				if (toAdd.compareDist(n.getHouse(), srtdN.get(j)) == -1) {
 					srtdN.add(j, toAdd);
 					break;
 				}
@@ -356,12 +361,12 @@ public class SimulatorMCTSNaive extends PApplet {
 			} catch (InvalidVertexException e) {
 				e.printStackTrace();
 			}
-			
+
 			LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
 
 			// for display of triangulation at the end of the simulation
 			if (displayGUI) {
-				for(Triangle triToDisplay : triList) {
+				for (Triangle triToDisplay : triList) {
 					Location first = new Location(triToDisplay.a.y, triToDisplay.a.x);
 					Location second = new Location(triToDisplay.b.y, triToDisplay.b.x);
 					Location third = new Location(triToDisplay.c.y, triToDisplay.c.x);
@@ -392,12 +397,12 @@ public class SimulatorMCTSNaive extends PApplet {
 				for (Marker cntHouse : houseMarkers) {
 					// make boundaryTriangle
 					Point[] vertices = new Point[3];
-					
-				    vertices[0] = new Point(t.a.x, t.a.y);
+
+					vertices[0] = new Point(t.a.x, t.a.y);
 					vertices[1] = new Point(t.b.x, t.b.y);
 					vertices[2] = new Point(t.c.x, t.c.y);
 					BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
-					
+
 					// check if point is within boundaryTriangle
 					if (boundTri.contains(new Point((double) cntHouse.getLocation().getLon(),
 							(double) cntHouse.getLocation().getLat()))) {
@@ -413,7 +418,7 @@ public class SimulatorMCTSNaive extends PApplet {
 				listCntHouses.add(0, a);
 			}
 			int maxValue = listCntHouses.get(0);
-			
+
 			Double averageTri = (double) total / (double) cntHouses.length;
 
 			// tally up score
@@ -502,17 +507,119 @@ public class SimulatorMCTSNaive extends PApplet {
 					totalDistance = 0;
 					prevMark = null;
 					triPointList = new ArrayList<Vertex>();
-					
+
 					// invoke next simulation
 					updateFunction();
 				} else {
 					// write csv
-					writeCsvFile("results.csv");
-					
+					writeTextFile(outputFileName);
+
 					distanceLeftToTravel = 0;
 				}
 			}
-		} 
+		}
+	}
+
+	public static void writeTextFile(String outputFileNameToAdd) {
+
+		// get average
+		double toAdd0 = 0;
+		double toAdd1 = 0;
+		double toAdd2 = 0;
+		double toAdd3 = 0;
+		double toAdd4 = 0;
+		double toAdd5 = 0;
+		double toAdd6 = 0;
+		double toAdd7 = 0;
+		double toAdd8 = 0;
+		double toAdd9 = 0;
+		double toAdd10 = 0;
+		double toAdd11 = 0;
+		double toAdd12 = 0;
+		double toAdd13 = 0;
+		for (int i = 0; i < sims.length; i++) {
+			toAdd0 = toAdd0 + sims[i][0];
+			toAdd1 = toAdd1 + sims[i][1];
+			toAdd2 = toAdd2 + sims[i][2];
+			toAdd3 = toAdd3 + sims[i][3];
+			toAdd4 = toAdd4 + sims[i][4];
+			toAdd5 = toAdd5 + sims[i][5];
+			toAdd6 = toAdd6 + sims[i][6];
+			toAdd7 = toAdd7 + sims[i][7];
+			toAdd8 = toAdd8 + sims[i][8];
+			toAdd9 = toAdd9 + sims[i][9];
+			toAdd10 = toAdd10 + sims[i][10];
+			toAdd11 = toAdd11 + sims[i][11];
+			toAdd12 = toAdd12 + sims[i][12];
+			toAdd13 = toAdd13 + sims[i][13];
+		}
+		Double average0 = toAdd0 / sims.length;
+		Double average1 = toAdd1 / sims.length;
+		Double average2 = toAdd2 / sims.length;
+		Double average3 = toAdd3 / sims.length;
+		Double average4 = toAdd4 / sims.length;
+		Double average5 = toAdd5 / sims.length;
+		Double average6 = toAdd6 / sims.length;
+		Double average7 = toAdd7 / sims.length;
+		Double average8 = toAdd8 / sims.length;
+		Double average9 = toAdd9 / sims.length;
+		Double average10 = toAdd10 / sims.length;
+		Double average11 = toAdd11 / sims.length;
+		Double average12 = toAdd12 / sims.length;
+		Double average13 = toAdd13 / sims.length;
+
+		String fileName = new String("MCTSNaive" + new Date());
+		fileName = fileName.replaceAll("\\s+", "");
+		fileName = fileName.replaceAll(":", "_");
+		System.out.println(fileName);
+		File fileToWrite = new File("output/", fileName + ".txt");
+
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(fileToWrite));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+
+			// write all results
+			writer.write("Method Used: MCTSNaive");
+			writer.write("\n");
+			writer.write("Number of houses: " + String.valueOf(average0));
+			writer.write("\n");
+			writer.write("Number of inspected houses: " + String.valueOf(average1));
+			writer.write("\n");
+			writer.write("Number of inspected houses that were infested: " + String.valueOf(average2));
+			writer.write("\n");
+			writer.write("Number of most high risk houses NOT inspected: " + String.valueOf(average3));
+			writer.write("\n");
+			writer.write("Number of most high risk houses inspected: " + String.valueOf(average4));
+			writer.write("\n");
+			writer.write("Number of high risk houses inspected: " + String.valueOf(average5));
+			writer.write("\n");
+			writer.write("Number of medium risk houses inspected: " + String.valueOf(average6));
+			writer.write("\n");
+			writer.write("Number of low risk houses inspected: " + String.valueOf(average7));
+			writer.write("\n");
+			writer.write("Number of most low risk houses inspected: " + String.valueOf(average8));
+			writer.write("\n");
+			writer.write("Total distance traveled:  " + String.valueOf(average9));
+			writer.write("\n");
+			writer.write("Max number of houses in a triangle: " + String.valueOf(average10));
+			writer.write("\n");
+			writer.write("Average number of houses in a triangle: " + String.valueOf(average11));
+			writer.write("\n");
+			writer.write("Distance given to travel: " + String.valueOf(average12));
+			writer.write("\n");
+			writer.write("Number of simulations: " + String.valueOf(average13));
+
+			writer.flush();
+			writer.close();
+			System.exit(0);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
 	}
 
 	public static void writeCsvFile(String fileName) {
@@ -567,7 +674,7 @@ public class SimulatorMCTSNaive extends PApplet {
 			Double average11 = toAdd11 / sims.length;
 			Double average12 = toAdd12 / sims.length;
 			Double average13 = toAdd13 / sims.length;
-			
+
 			// get standard deviations
 			double[] simsSD = new double[sims.length];
 			for (int i = 0; i < sims.length; i++) {
@@ -577,7 +684,6 @@ public class SimulatorMCTSNaive extends PApplet {
 			for (int j = 0; j < sims.length; j++) {
 				SD = SD + simsSD[j];
 			}
-			
 
 			// write all results
 			fileWriter.append("\n");
@@ -613,9 +719,162 @@ public class SimulatorMCTSNaive extends PApplet {
 
 			fileWriter.flush();
 			fileWriter.close();
+			System.exit(0);
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+
+	}
+
+	private static Node getBestChild(Node parent) {
+		List<Node> children = parent.getChildren();
+		int maxChildDex = 0;
+		float maxChildVal = 0;
+		for (int i = 0; i < children.size(); i++) {
+			// get child value
+			Node child = children.get(i);
+			float val = 0;
+			if (child.getCount() == 0) {
+				val = Float.POSITIVE_INFINITY;
+			} else {
+				val = (float) (child.getQVal() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
+			}
+			// flip coin if child with equal value, replace if there is a child
+			// with a greater value
+			if (val == maxChildVal) {
+				Random coinFlip = new Random();
+				coinFlip.setSeed(42);
+				int ans = coinFlip.nextInt(2);
+				if (ans == 0) {
+					maxChildDex = i;
+					maxChildVal = val;
+				}
+			} else if (val > maxChildVal) {
+				maxChildDex = i;
+				maxChildVal = val;
+			}
+		}
+		Node toReturnNode = children.get(maxChildDex);
+		return toReturnNode;
+	}
+
+	private static boolean isTerminalState(Node toCheck, int nNeighbors) {
+		boolean ans = true;
+		ArrayList<LabeledMarker> neighbors = getNeighbors(toCheck, nNeighbors);
+		Iterator<LabeledMarker> neighborIter = neighbors.iterator();
+		// check if it is possible to have any children
+		while (neighborIter.hasNext()) {
+			LabeledMarker labeledMarkerToAdd = neighborIter.next();
+			float distToNeighbor = (float) tree.curr.getHouse().getDistanceTo(labeledMarkerToAdd.getLocation());
+			float distLeft = tree.curr.getDist() - distToNeighbor;
+			if (distLeft > 0) { // only change ans if there is a child that is
+								// able to be added
+				ans = false;
+			}
+		}
+		return ans;
+	}
+
+	private static void expandNode(Node toExpand) {
+		if (!isTerminalState(toExpand, nNeighExpand)) {
+			// starts as leaf, some number of actions are added
+			ArrayList<LabeledMarker> neighbors = getNeighbors(toExpand, nNeighExpand);
+			Iterator<LabeledMarker> neighborIter = neighbors.iterator();
+			// add all children
+			while (neighborIter.hasNext()) {
+				LabeledMarker labeledMarkerToAdd = neighborIter.next();
+				float distToNeighbor = (float) toExpand.getHouse().getDistanceTo(labeledMarkerToAdd.getLocation());
+				float distLeft = toExpand.getDist() - distToNeighbor;
+				if (distLeft > 0) { // only add the child if it does not go over
+									// the rest of the distance
+					toExpand.addChild(new Node(toExpand, labeledMarkerToAdd, distLeft));
+				}
+			}
+		}
+	}
+
+	public static void makeMCTS() {
+		int numIterations = 500;
+		while (numIterations > 0) {
+			// Part I: Selection
+			// find the child that maximizes the algorithm, and eventually the leaf
+			while (!tree.curr.isLeaf()) {
+				Node bestChild = getBestChild(tree.curr);
+				tree.curr = bestChild;
+			}
+
+			// Part II: Expansion
+			if (tree.curr.getCount() != 0) {
+				// add children to the current node
+				expandNode(tree.curr);
+				// find most promising child as well
+				tree.curr = getBestChild(tree.curr);
+			}
+
+			// Part III: Rollout (do this from whichever node is set as curr in the tree)
+			double ROVal = 0;
+			if (!isTerminalState(tree.curr, nNeighExpand)) {
+				MCTSTree toSimulate = new MCTSTree(
+						new Node(tree.curr.getParent(), tree.curr.getHouse(), tree.curr.getDist()));
+				int simIter = 50;
+				double sumSimVals = 0;
+				while (simIter > 0) {
+					// get simulation value
+					double simVal = getSimulationValue(toSimulate.curr);
+					sumSimVals = sumSimVals + simVal;
+					// update simulation iteration number
+					simIter = simIter - 1;
+				}
+				ROVal = sumSimVals / simIter;
+			}
+
+			// Part IV: Update
+			if (!isTerminalState(tree.curr, nNeighExpand)) {
+				while (tree.curr.getParent() != null) {
+					tree.curr.addCount();
+					tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
+					
+					float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
+					tree.curr.setQVal(qValToAdd);
+				}
+			}
+
+			// reset the curr
+			tree.curr = tree.root;
+
+			// update iterations
+			numIterations = numIterations - 1;
+		}
+	}
+
+	public static double getSimulationValue(Node toSimulate) {
+		Node curr = new Node(toSimulate.getParent(), toSimulate.getHouse(), toSimulate.getDist());
+		double sum = 0;
+		int cnt = 1;
+		while (!isTerminalState(curr, nNeighExpand)) {
+			// update sum value
+			if (curr.getHouse().category == 1) {
+				sum = sum + 0.2;
+			} else if (curr.getHouse().category == 2) {
+				sum = sum + 0.4;
+			} else if (curr.getHouse().category == 3) {
+				sum = sum + 0.6;
+			} else if (curr.getHouse().category == 4) {
+				sum = sum + 0.8;
+			}
+			// expand this current node
+			expandNode(curr);
+			// go to random child
+			Random random = new Random();
+			random.setSeed(42);
+			curr = curr.getChildren().get(random.nextInt(curr.getChildren().size()));
+			// keep track of how deep the branch is
+			cnt++;
+		}
+		// add last leaf node to count
+		cnt++;
+
+		return sum / cnt;
 	}
 
 	public static void updateFunction() {
@@ -629,48 +888,18 @@ public class SimulatorMCTSNaive extends PApplet {
 			if (prevMark == null) {
 				SimplePointMarker m = houseMarkers.get(2);
 				prevMark = (LabeledMarker) m;
-				tree = new MCTSTree();
 			} else {
 				// the previous marker has now been 'clicked'
 				prevMark.searched = true;
 				prevMark.isPrevMark = true;
 
-				// add point for triangulation, draw function will get the
-				// triangulation and draw it
-				triPointList.add(new Vertex((double) prevMark.getLocation().getLon(),
-						(double) prevMark.getLocation().getLat()));
-				
-				// add the previous mark  to the tree
-			    tree.addNode(new Node(prevMark));
+				// add point for triangulation, draw function will get the triangulation and draw it
+				triPointList.add(
+						new Vertex((double) prevMark.getLocation().getLon(), (double) prevMark.getLocation().getLat()));
 
 				// next marker to search (MCTS algorithm)
 				LabeledMarker nextU = null;
-				
-				// Part I: Selection
-				// find the child that maximizes the algorithm, and eventually the leaf
-//				while (!tree.curr.isLeaf()) {
-//					List<Node> children = tree.getChildrenCurr();
-//					int maxChildDex = 0;
-//					for (Node child : children) {
-//						if (child.getCount() == 0) {
-//						   float val = Float.POSITIVE_INFINITY;
-//						} else {
-//						   float val = (float) (child.getReward() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
-//						}
-//						
-//						
-//					}
-//				}
-				
-				
-				
-				// Part II: Expansion
-				// Part III: Rollout
-				// Part IV: Update
-				
-				
-				
-				
+
 				int sizeHouseMarkers = houseMarkers.size();
 				Random random = new Random();
 				random.setSeed(42);
@@ -720,35 +949,56 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	public static void main(String args[]) {
-		// ask if we should display GUI or not
-		int reply = JOptionPane.showConfirmDialog(null, "Display GUI?", "GUI display", JOptionPane.YES_NO_OPTION);
-		if (reply == JOptionPane.YES_OPTION) {
-			displayGUI = true;
-		} else {
-			displayGUI = false;
+		File fileName = new File(args[0]);
+		outputFileName = args[0];
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader(fileName));
+		} catch (FileNotFoundException e1) {
+			e1.printStackTrace();
 		}
 
-		// ask how long the pause should be
-		int pauseAns = Integer.parseInt(
-				JOptionPane.showInputDialog("How long should pauses between decision be? (milliseconds)", "20"));
-		pause = pauseAns;
+		String guiToParse = null;
+		String pauseToParse = null;
+		String simsToParse = null;
+		String distToParse = null;
+		String cpToParse = null;
+		String nNeighExpandToParse = null;
+		try {
+			guiToParse = br.readLine();
+			guiToParse = guiToParse.trim();
+			guiToParse = guiToParse.replaceAll("DISPLAY_GUI = ", "");
 
-		// ask how many simulations there should be
-		int simsAns = Integer
-				.parseInt(JOptionPane.showInputDialog("How many simulations would you like to do?", "100"));
-		nSims = simsAns;
-		sims = new double[simsAns][14];
+			pauseToParse = br.readLine();
+			pauseToParse = pauseToParse.trim();
+			pauseToParse = pauseToParse.replaceAll("PAUSE_MILLISECONDS = ", "");
 
-		// ask how much distance an inspector can walk in a simulation
-		int distAns = Integer.parseInt(
-				JOptionPane.showInputDialog("How much distance can an inspector walk during simulation? (km)", "4"));
-		distanceLeftToTravelSave = distAns;
-		distanceLeftToTravel = distAns;
-		
-		// ask how much distance an inspector can walk in a simulation
-		double toAddCp = Double.parseDouble(
-				JOptionPane.showInputDialog("What should the constant of the UCT algorithm be?", "1"));
-		Cp = toAddCp;
+			simsToParse = br.readLine();
+			simsToParse = simsToParse.trim();
+			simsToParse = simsToParse.replaceAll("NUM_SIMULATIONS = ", "");
+
+			distToParse = br.readLine();
+			distToParse = distToParse.trim();
+			distToParse = distToParse.replaceAll("DISTANCE_FOR_SIM_KM = ", "");
+
+			cpToParse = br.readLine();
+			cpToParse = cpToParse.trim();
+			cpToParse = cpToParse.replaceAll("CP = ", "");
+
+			nNeighExpandToParse = br.readLine();
+			nNeighExpandToParse = nNeighExpandToParse.trim();
+			nNeighExpandToParse = nNeighExpandToParse.replaceAll("NUM_NEIGHBORS_EXPANSION = ", "");
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		displayGUI = Boolean.parseBoolean(guiToParse);
+		pause = Integer.parseInt(pauseToParse);
+		nSims = Integer.parseInt(simsToParse);
+		sims = new double[nSims][14];
+		distanceLeftToTravelSave = Integer.parseInt(distToParse);
+		distanceLeftToTravel = Integer.parseInt(distToParse);
+		Cp = Integer.parseInt(cpToParse);
+		nNeighExpand = Integer.parseInt(nNeighExpandToParse);
 
 		// main window (also invokes set-up)
 		PApplet.main(new String[] { SimulatorMCTSNaive.class.getName() });
@@ -775,8 +1025,9 @@ public class SimulatorMCTSNaive extends PApplet {
 			f.dispose();
 		}
 
-		// update function
-		updateFunction();
+		// get MCTS
+		tree = new MCTSTree(new Node(null, (LabeledMarker) houseMarkers.get(2), (float) distanceLeftToTravelSave));
+		makeMCTS();
+		
 	}
-
 }
