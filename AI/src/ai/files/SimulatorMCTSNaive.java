@@ -509,7 +509,8 @@ public class SimulatorMCTSNaive extends PApplet {
 					triPointList = new ArrayList<Vertex>();
 
 					// invoke next simulation
-					updateFunction();
+					makeMCTS();
+					traverseTree();
 				} else {
 					// write csv
 					writeTextFile(outputFileName);
@@ -877,7 +878,7 @@ public class SimulatorMCTSNaive extends PApplet {
 		return sum / cnt;
 	}
 
-	public static void updateFunction() {
+	public static void traverseTree() {
 		while (distanceLeftToTravel > 0) {
 			// pause between each decision made
 			try {
@@ -899,15 +900,19 @@ public class SimulatorMCTSNaive extends PApplet {
 
 				// next marker to search (MCTS algorithm)
 				LabeledMarker nextU = null;
-
-				int sizeHouseMarkers = houseMarkers.size();
-				Random random = new Random();
-				random.setSeed(42);
-				nextU = (LabeledMarker) houseMarkers.get(random.nextInt(sizeHouseMarkers));
-				while (nextU.searched) {
-					nextU = (LabeledMarker) houseMarkers.get(random.nextInt(sizeHouseMarkers));
+				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Node maxChild = childIter.next();
+				while (childIter.hasNext()) {
+					Node toCheck = childIter.next();
+					if (toCheck.getQVal() > maxChild.getQVal()) {
+						maxChild = toCheck;
+					}
 				}
-
+				nextU = maxChild.getHouse();
+				
+				// update the curr of the tree
+				tree.curr = maxChild;
+				
 				// update the distance left to travel
 				distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU.getLocation());
 
@@ -1028,6 +1033,6 @@ public class SimulatorMCTSNaive extends PApplet {
 		// get MCTS
 		tree = new MCTSTree(new Node(null, (LabeledMarker) houseMarkers.get(2), (float) distanceLeftToTravelSave));
 		makeMCTS();
-		
+		traverseTree();
 	}
 }
