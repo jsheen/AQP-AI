@@ -1,0 +1,15 @@
+Method Used: random
+Number of houses: 578.0
+Number of inspected houses: 14.0
+Number of inspected houses that were infested: 0.0
+Number of most high risk houses NOT inspected: 114.0
+Number of most high risk houses inspected: 2.0
+Number of high risk houses inspected: 2.0
+Number of medium risk houses inspected: 3.0
+Number of low risk houses inspected: 3.0
+Number of most low risk houses inspected: 4.0
+Total distance traveled:  3.656809772986728
+Max number of houses in a triangle: 58.0
+Average number of houses in a triangle: 20.285714285714285
+Distance given to travel: 4.0
+Number of simulations: 1.0

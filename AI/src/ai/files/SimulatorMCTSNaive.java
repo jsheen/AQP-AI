@@ -728,6 +728,9 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	private static Node getBestChild(Node parent) {
+		if (parent.getChildren().isEmpty()) {
+			throw new java.lang.Error("parent has no children");
+		}
 		List<Node> children = parent.getChildren();
 		int maxChildDex = 0;
 		float maxChildVal = 0;
@@ -738,7 +741,8 @@ public class SimulatorMCTSNaive extends PApplet {
 			if (child.getCount() == 0) {
 				val = Float.POSITIVE_INFINITY;
 			} else {
-				val = (float) (child.getQVal() + 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
+				val = (float) (child.getQVal()
+						+ 2 * Cp * Math.sqrt((2 * Math.log(tree.curr.getCount())) / child.getCount()));
 			}
 			// flip coin if child with equal value, replace if there is a child
 			// with a greater value
@@ -756,6 +760,7 @@ public class SimulatorMCTSNaive extends PApplet {
 			}
 		}
 		Node toReturnNode = children.get(maxChildDex);
+
 		return toReturnNode;
 	}
 
@@ -763,11 +768,11 @@ public class SimulatorMCTSNaive extends PApplet {
 		boolean ans = true;
 		ArrayList<LabeledMarker> neighbors = getNeighbors(toCheck, nNeighbors);
 		Iterator<LabeledMarker> neighborIter = neighbors.iterator();
-		// check if it is possible to have any children
+		// check if it is has any children
 		while (neighborIter.hasNext()) {
 			LabeledMarker labeledMarkerToAdd = neighborIter.next();
-			float distToNeighbor = (float) tree.curr.getHouse().getDistanceTo(labeledMarkerToAdd.getLocation());
-			float distLeft = tree.curr.getDist() - distToNeighbor;
+			float distToNeighbor = (float) toCheck.getHouse().getDistanceTo(labeledMarkerToAdd.getLocation());
+			float distLeft = toCheck.getDist() - distToNeighbor;
 			if (distLeft > 0) { // only change ans if there is a child that is
 								// able to be added
 				ans = false;
@@ -777,6 +782,7 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	private static void expandNode(Node toExpand) {
+		// will expand the node as long as the node is not a terminal state and the distance is not overcome
 		if (!isTerminalState(toExpand, nNeighExpand)) {
 			// starts as leaf, some number of actions are added
 			ArrayList<LabeledMarker> neighbors = getNeighbors(toExpand, nNeighExpand);
@@ -795,8 +801,9 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	public static void makeMCTS() {
-		int numIterations = 500;
+		int numIterations = 30;
 		while (numIterations > 0) {
+			System.out.println(numIterations);
 			// Part I: Selection
 			// find the child that maximizes the algorithm, and eventually the leaf
 			while (!tree.curr.isLeaf()) {
@@ -812,12 +819,13 @@ public class SimulatorMCTSNaive extends PApplet {
 				tree.curr = getBestChild(tree.curr);
 			}
 
-			// Part III: Rollout (do this from whichever node is set as curr in the tree)
+			// Part III: Rollout (do this from whichever node is set as curr in
+			// the tree)
 			double ROVal = 0;
 			if (!isTerminalState(tree.curr, nNeighExpand)) {
 				MCTSTree toSimulate = new MCTSTree(
 						new Node(tree.curr.getParent(), tree.curr.getHouse(), tree.curr.getDist()));
-				int simIter = 50;
+				int simIter = 15;
 				double sumSimVals = 0;
 				while (simIter > 0) {
 					// get simulation value
@@ -834,7 +842,7 @@ public class SimulatorMCTSNaive extends PApplet {
 				while (tree.curr.getParent() != null) {
 					tree.curr.addCount();
 					tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
-					
+
 					float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
 					tree.curr.setQVal(qValToAdd);
 				}
@@ -879,61 +887,58 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	public static void traverseTree() {
-		while (distanceLeftToTravel > 0) {
+		while (!tree.curr.isLeaf()) {
 			// pause between each decision made
 			try {
 				Thread.sleep(pause);
 			} catch (InterruptedException e) {
 			}
 
-			if (prevMark == null) {
-				SimplePointMarker m = houseMarkers.get(2);
-				prevMark = (LabeledMarker) m;
-			} else {
-				// the previous marker has now been 'clicked'
-				prevMark.searched = true;
-				prevMark.isPrevMark = true;
+			prevMark = tree.curr.getHouse();
 
-				// add point for triangulation, draw function will get the triangulation and draw it
-				triPointList.add(
-						new Vertex((double) prevMark.getLocation().getLon(), (double) prevMark.getLocation().getLat()));
+			// the previous marker has now been 'clicked'
+			prevMark.searched = true;
+			prevMark.isPrevMark = true;
 
-				// next marker to search (MCTS algorithm)
-				LabeledMarker nextU = null;
-				Iterator<Node> childIter = tree.curr.getChildren().iterator();
-				Node maxChild = childIter.next();
-				while (childIter.hasNext()) {
-					Node toCheck = childIter.next();
-					if (toCheck.getQVal() > maxChild.getQVal()) {
-						maxChild = toCheck;
-					}
+			// add point for triangulation, draw function will get the
+			// triangulation and draw it
+			triPointList.add(
+					new Vertex((double) prevMark.getLocation().getLon(), (double) prevMark.getLocation().getLat()));
+
+			// next marker to search (MCTS algorithm)
+			LabeledMarker nextU = null;
+			Iterator<Node> childIter = tree.curr.getChildren().iterator();
+			Node maxChild = childIter.next();
+			while (childIter.hasNext()) {
+				Node toCheck = childIter.next();
+				if (toCheck.getQVal() > maxChild.getQVal()) {
+					maxChild = toCheck;
 				}
-				nextU = maxChild.getHouse();
-				
-				// update the curr of the tree
-				tree.curr = maxChild;
-				
-				// update the distance left to travel
-				distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU.getLocation());
-
-				if (distanceLeftToTravel > 0) {
-
-					// update the total distance
-					totalDistance = totalDistance + prevMark.getDistanceTo(nextU.getLocation());
-
-					// add line to show path
-					SimpleLinesMarker toAddLine = new SimpleLinesMarker(prevMark.getLocation(), nextU.getLocation());
-					toAddLine.setColor(0);
-					toAddLine.setStrokeWeight(3);
-					slm.add(toAddLine);
-
-					// replace for next loop iteration
-					prevMark.isPrevMark = false;
-					prevMark = nextU;
-				}
-
 			}
+			nextU = maxChild.getHouse();
+
+			// update the distance left to travel
+			distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU.getLocation());
+
+			// update the total distance
+			totalDistance = totalDistance + prevMark.getDistanceTo(nextU.getLocation());
+
+			if (displayGUI) {
+				// add line to show path
+				SimpleLinesMarker toAddLine = new SimpleLinesMarker(prevMark.getLocation(), nextU.getLocation());
+				toAddLine.setColor(0);
+				toAddLine.setStrokeWeight(3);
+				slm.add(toAddLine);
+			}
+
+			// replace for next loop iteration
+			prevMark.isPrevMark = false;
+
+			// update the curr of the tree
+			tree.curr = maxChild;
 		}
+		// invoke the draw function to write the results of the simulation
+		distanceLeftToTravel = -1;
 	}
 
 	// From the given labeled marker, get the closest marker that is the color given
@@ -1000,8 +1005,8 @@ public class SimulatorMCTSNaive extends PApplet {
 		pause = Integer.parseInt(pauseToParse);
 		nSims = Integer.parseInt(simsToParse);
 		sims = new double[nSims][14];
-		distanceLeftToTravelSave = Integer.parseInt(distToParse);
-		distanceLeftToTravel = Integer.parseInt(distToParse);
+		distanceLeftToTravelSave = Double.parseDouble(distToParse);
+		distanceLeftToTravel = Double.parseDouble(distToParse);
 		Cp = Integer.parseInt(cpToParse);
 		nNeighExpand = Integer.parseInt(nNeighExpandToParse);
 
@@ -1030,7 +1035,7 @@ public class SimulatorMCTSNaive extends PApplet {
 			f.dispose();
 		}
 
-		// get MCTS
+		// invoke MCTS function
 		tree = new MCTSTree(new Node(null, (LabeledMarker) houseMarkers.get(2), (float) distanceLeftToTravelSave));
 		makeMCTS();
 		traverseTree();

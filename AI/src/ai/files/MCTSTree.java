@@ -1,6 +1,6 @@
 package ai.files;
 
-import java.util.LinkedList;
+import java.util.ArrayList;
 import java.util.List;
 
 public class MCTSTree {
@@ -20,7 +20,7 @@ public class MCTSTree {
 	   private int count = 0;
 	   private float sumVals = 0;
 	   private float qVal = 0;
-	   private List<Node> children;
+	   private List<Node> children = new ArrayList<Node>();
 	   private float dist = 0;
 
 	   public Node(Node toAddParent, LabeledMarker toAddHouse, float toAddDist)
@@ -31,12 +31,7 @@ public class MCTSTree {
 	   }
 	   
 	   public void addChild(Node toAdd) {
-		   if (children.isEmpty()) {
-			   children = new LinkedList<Node>();
-			   children.add(toAdd);
-		   } else {
-			   this.children.add(toAdd);
-		   }
+		   this.children.add(toAdd);
 	   }
 	   
 	   public boolean isLeaf() {
