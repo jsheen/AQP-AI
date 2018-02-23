@@ -16,14 +16,14 @@ public class MCTSTree {
 	public static class Node
 	{
 	   private Node parent = null;
-	   private LabeledMarker house = null;
+	   private House house = null;
 	   private int count = 0;
 	   private float sumVals = 0;
 	   private float qVal = 0;
 	   private List<Node> children = new ArrayList<Node>();
 	   private float dist = 0;
 
-	   public Node(Node toAddParent, LabeledMarker toAddHouse, float toAddDist)
+	   public Node(Node toAddParent, House toAddHouse, float toAddDist)
 	   {
 		  parent = toAddParent;
 	      house = toAddHouse;
@@ -66,7 +66,7 @@ public class MCTSTree {
 		   qVal = toSetQVal;
 	   }
 	   
-	   public LabeledMarker getHouse() {
+	   public House getHouse() {
 		   return house;
 	   }
 	   
@@ -90,7 +90,7 @@ public class MCTSTree {
 		   return parent;
 	   }
 	   
-	   public boolean isAncestorHouse(LabeledMarker toCheck) {
+	   public boolean isAncestorHouse(House toCheck) {
 		   if (this.parent == null) {
 			   return false;
 		   } else if (this.house == toCheck) {
