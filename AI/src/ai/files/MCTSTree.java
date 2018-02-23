@@ -108,5 +108,13 @@ public class MCTSTree {
 			   return this.parent.getLengthBranch() + 1;
 		   }
 	   }
+	   
+	   public int howLongIsBranch() {
+		   if (this.parent == null) {
+			   return 0;
+		   } else {
+			   return 1 + this.parent.howLongIsBranch();
+		   }
+	   }
 	}
 }

@@ -88,6 +88,7 @@ public class SimulatorMCTSNaive extends PApplet {
 	static MCTSTree tree = null;
 	static int Cp = 1;
 	static int nNeighExpand = 1;
+	static int numIterBuildTree = 50;
 
 	// creates house markers
 	public static void readHouseGPS() throws IOException {
@@ -801,9 +802,8 @@ public class SimulatorMCTSNaive extends PApplet {
 	}
 
 	public static void makeMCTS() {
-		int numIterations = 30;
-		while (numIterations > 0) {
-			System.out.println(numIterations);
+		while (numIterBuildTree > 0) {
+			System.out.println(numIterBuildTree);
 			// Part I: Selection
 			// find the child that maximizes the algorithm, and eventually the leaf
 			while (!tree.curr.isLeaf()) {
@@ -819,40 +819,41 @@ public class SimulatorMCTSNaive extends PApplet {
 				tree.curr = getBestChild(tree.curr);
 			}
 
-			// Part III: Rollout (do this from whichever node is set as curr in
-			// the tree)
+			// Part III: Rollout (do this from whichever node is set as curr in the tree)
 			double ROVal = 0;
 			if (!isTerminalState(tree.curr, nNeighExpand)) {
-				MCTSTree toSimulate = new MCTSTree(
-						new Node(tree.curr.getParent(), tree.curr.getHouse(), tree.curr.getDist()));
-				int simIter = 15;
+				double simIter = 15;
 				double sumSimVals = 0;
 				while (simIter > 0) {
 					// get simulation value
-					double simVal = getSimulationValue(toSimulate.curr);
+					double simVal = getSimulationValue(tree.curr);
 					sumSimVals = sumSimVals + simVal;
 					// update simulation iteration number
 					simIter = simIter - 1;
 				}
-				ROVal = sumSimVals / simIter;
+				ROVal = sumSimVals / 15;
 			}
 
 			// Part IV: Update
-			if (!isTerminalState(tree.curr, nNeighExpand)) {
-				while (tree.curr.getParent() != null) {
-					tree.curr.addCount();
-					tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
+			while (tree.curr.getParent() != null) {
+				tree.curr.addCount();
+				tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
 
-					float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
-					tree.curr.setQVal(qValToAdd);
-				}
+				float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
+				tree.curr.setQVal(qValToAdd);
+				tree.curr = tree.curr.getParent();
 			}
-
+			// need to add to final count for the ROOT NODE, otherwise will not update
+			tree.curr.addCount();
+			tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
+			float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
+			tree.curr.setQVal(qValToAdd);
+		
 			// reset the curr
 			tree.curr = tree.root;
-
+			
 			// update iterations
-			numIterations = numIterations - 1;
+			numIterBuildTree = numIterBuildTree - 1;
 		}
 	}
 
@@ -974,6 +975,7 @@ public class SimulatorMCTSNaive extends PApplet {
 		String distToParse = null;
 		String cpToParse = null;
 		String nNeighExpandToParse = null;
+		String numIterBuildTreeToParse = null;
 		try {
 			guiToParse = br.readLine();
 			guiToParse = guiToParse.trim();
@@ -998,6 +1000,10 @@ public class SimulatorMCTSNaive extends PApplet {
 			nNeighExpandToParse = br.readLine();
 			nNeighExpandToParse = nNeighExpandToParse.trim();
 			nNeighExpandToParse = nNeighExpandToParse.replaceAll("NUM_NEIGHBORS_EXPANSION = ", "");
+			
+			numIterBuildTreeToParse = br.readLine();
+			numIterBuildTreeToParse = numIterBuildTreeToParse.trim();
+			numIterBuildTreeToParse = numIterBuildTreeToParse.replaceAll("NUM_ITER_BUILD_TREE = ", "");
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
@@ -1009,6 +1015,7 @@ public class SimulatorMCTSNaive extends PApplet {
 		distanceLeftToTravel = Double.parseDouble(distToParse);
 		Cp = Integer.parseInt(cpToParse);
 		nNeighExpand = Integer.parseInt(nNeighExpandToParse);
+		numIterBuildTree = Integer.parseInt(numIterBuildTreeToParse);
 
 		// main window (also invokes set-up)
 		PApplet.main(new String[] { SimulatorMCTSNaive.class.getName() });
