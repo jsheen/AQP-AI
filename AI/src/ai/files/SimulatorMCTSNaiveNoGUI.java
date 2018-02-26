@@ -10,7 +10,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -43,86 +43,115 @@ public class SimulatorMCTSNaiveNoGUI {
 	static String outputFileName = "error";
 	static List<House> houseList = new ArrayList<House>();
 	static List<HouseLine> lineList = new ArrayList<HouseLine>();
-	
+
 	// MCTS global variables
 	static MCTSTree tree = null;
 	static int Cp = 1;
 	static int nNeighExpand = 1;
 	static int numIterBuildTree = 50;
 	static int numIterBuildTreeSave = 50;
+	static HashMap<House, ArrayList<House>> houseMap = new HashMap<House, ArrayList<House>>();
 
 	// creates houses
-	public static void readHouseGPS() throws IOException {
-		File fileName = new File("forSimulator.csv");
+	public static void readHouses() throws IOException {
+		File fileName = new File("precomputeNeighbors/", "precomputeNeighbors.txt");
+
+		// first read in all houses
 		BufferedReader br = new BufferedReader(new FileReader(fileName));
-
 		String currentLine = br.readLine();
-		currentLine = br.readLine();
-		while (currentLine != null) {
-			int uniEnd = currentLine.indexOf(" ");
-			int latEnd = currentLine.indexOf(" ", uniEnd + 1);
-			int lonEnd = currentLine.indexOf(" ", latEnd + 1);
-			int quantEnd = currentLine.indexOf(" ", lonEnd + 1);
-			int blockEnd = currentLine.length();
-
-			String uni = currentLine.substring(0, uniEnd);
-			String lat = currentLine.substring(uniEnd + 1, latEnd);
-			String lon = currentLine.substring(latEnd + 1, lonEnd);
-			String quant = currentLine.substring(lonEnd + 1, quantEnd);
-			String block = currentLine.substring(quantEnd + 1, blockEnd);
-
-			uni = uni.trim();
-			uni = uni.replaceAll("\"", "");
-			lat = lat.trim();
-			lat = lat.replaceAll("\"", "");
-			lon = lon.trim();
-			lon = lon.replaceAll("\"", "");
-			quant = quant.trim();
-			quant = quant.replaceAll("\"", "");
-			block = block.trim();
-			block = block.replaceAll("\"", "");
-
+		while (!currentLine.equals("..........")) {
+			String uni = currentLine;
+			//System.out.println(uni);
+			String lat = br.readLine();
+			//System.out.println(lat);
+			String lon = br.readLine();
+			//System.out.println(lon);
+			String block = br.readLine();
+			//System.out.println(block);
+			String quant = br.readLine();
+			//System.out.println(quant);
 			if (block.equals("NA")) {
 				// do nothing
 			} else {
-				House houseToAdd = new House(uni, Integer.parseInt(block), Float.parseFloat(lat),
-						Float.parseFloat(lon), Integer.parseInt(quant));
+				House houseToAdd = new House(uni, 
+						Integer.parseInt(block), 
+						Float.parseFloat(lat), 
+						Float.parseFloat(lon),
+						Integer.parseInt(quant));
+				houseList.add(houseToAdd);
+			}
+			currentLine = br.readLine();
 
-				// add infestation chance of the house
-				Random random = new Random();
-				random.setSeed(42);
-				if (houseToAdd.getCategory() == 4) {
-					int ans = random.nextInt(100);
-					if (ans == 0) {
-						houseToAdd.setInfested(true);
-					}
-				} else if (houseToAdd.getCategory() == 3) {
-					int ans = random.nextInt(125);
-					if (ans == 0) {
-						houseToAdd.setInfested(true);
-					}
-				} else if (houseToAdd.getCategory() == 2) {
-					int ans = random.nextInt(150);
-					if (ans == 0) {
-						houseToAdd.setInfested(true);
-					}
-				} else if (houseToAdd.getCategory() == 1) {
-					int ans = random.nextInt(175);
-					if (ans == 0) {
-						houseToAdd.setInfested(true);
-					}
-				} else if (houseToAdd.getCategory() == 0) {
-					int ans = random.nextInt(200);
-					if (ans == 0) {
-						houseToAdd.setInfested(true);
+		}
+
+		// because it was ".........." before
+		currentLine = br.readLine();
+
+		while (currentLine != null) {
+			// focal house
+			House focal = null;
+			String Funi = currentLine;
+
+			for (House toFindFocal : houseList) {
+				if (toFindFocal.getUnicode().equals(Funi)) {
+					focal = toFindFocal;
+				}
+			}
+
+			// because it was previously the focal unicode
+			currentLine = br.readLine();
+			
+			// neighbors of focal house
+			ArrayList<House> neighbors = new ArrayList<House>();
+			while (!currentLine.equals(".....")) {
+				String uni = currentLine;
+				// find the neighbor house in the list
+				for (House toFind : houseList) {
+					if (toFind.getUnicode().equals(uni)) {
+						neighbors.add(toFind);
 					}
 				}
 
-				// add to list of houses
-				houseList.add(houseToAdd);
+				currentLine = br.readLine();
 			}
-
+			houseMap.put(focal, neighbors);
+			
+			// go to next focal unicode
 			currentLine = br.readLine();
+		}
+		// close buffered reader
+		br.close();
+
+		// add infestation chance of the house
+		for (House hRisk : houseList) {
+			Random random = new Random();
+			random.setSeed(42);
+			if (hRisk.getCategory() == 4) {
+				int ans = random.nextInt(100);
+				if (ans == 0) {
+					hRisk.setInfested(true);
+				}
+			} else if (hRisk.getCategory() == 3) {
+				int ans = random.nextInt(125);
+				if (ans == 0) {
+					hRisk.setInfested(true);
+				}
+			} else if (hRisk.getCategory() == 2) {
+				int ans = random.nextInt(150);
+				if (ans == 0) {
+					hRisk.setInfested(true);
+				}
+			} else if (hRisk.getCategory() == 1) {
+				int ans = random.nextInt(175);
+				if (ans == 0) {
+					hRisk.setInfested(true);
+				}
+			} else if (hRisk.getCategory() == 0) {
+				int ans = random.nextInt(200);
+				if (ans == 0) {
+					hRisk.setInfested(true);
+				}
+			}
 		}
 
 		// get max lat and long for Delaunay triangulation
@@ -158,67 +187,24 @@ public class SimulatorMCTSNaiveNoGUI {
 
 		// right top corner
 		triPointList.add(new Vertex(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001));
-
-		br.close();
 	}
 
 	// get closest neighbors helper function
 	public static ArrayList<House> getNeighbors(Node n, int nNeigh) {
-		// find the 'nNeigh' closest neighbors for each house
-		HashSet<House> s = new HashSet<House>();
-		for (House neighbor : houseList) {
-			if (n.getHouse().equals(neighbor) || n.isAncestorHouse(neighbor)) {
-				// do nothing, it is the same house
-				// OR it may have already been searched so do not add
+		ArrayList<House> neighbors = houseMap.get(n.getHouse());
+		
+		ArrayList<House> toReturn = new ArrayList<House>();
+		for (House neighbor : neighbors) {
+			if (toReturn.size() == nNeigh) {
+				break;
 			} else {
-				if (s.size() < nNeigh) {
-					s.add(neighbor);
-				} else {
-					// 1. get max from the set
-					Iterator<House> iter = s.iterator();
-					House max = iter.next();
-					while (iter.hasNext()) {
-						House compareMax = iter.next();
-						float distanceOld = (float) n.getHouse().getDistanceTo(max);
-						float distanceNew = (float) n.getHouse().getDistanceTo(compareMax);
-
-						// compare, replace if necessary
-						if (distanceOld > distanceNew) {
-							max = compareMax;
-						}
-					}
-
-					// 2. replace if necessary
-					float distanceMax = (float) n.getHouse().getDistanceTo(max);
-					float distanceNewMax = (float) n.getHouse().getDistanceTo(neighbor);
-
-					if (distanceMax > distanceNewMax) {
-						s.remove(max);
-						s.add(neighbor);
-					}
+				if (!n.isAncestorHouse(neighbor)) {
+					toReturn.add(neighbor);
 				}
 			}
 		}
-
-		// another sort for these 'nNeigh' neighbors again
-		Iterator<House> iter = s.iterator();
-		ArrayList<House> srtdN = new ArrayList<House>();
-
-		while (iter.hasNext()) {
-			House toAdd = iter.next();
-			for (int j = 0; j < srtdN.size(); j++) {
-				if (toAdd.compareDist(n.getHouse(), srtdN.get(j)) == -1) {
-					srtdN.add(j, toAdd);
-					break;
-				}
-			}
-			// if needed to add at the end
-			if (!srtdN.contains(toAdd)) {
-				srtdN.add(toAdd);
-			}
-		}
-
-		return srtdN;
+		
+		return toReturn;
 	}
 
 	// helper function to check if it has any nulls
@@ -329,113 +315,13 @@ public class SimulatorMCTSNaiveNoGUI {
 			writer.write("Distance given to travel: " + String.valueOf(average12));
 			writer.write("\n");
 			writer.write("Number of simulations: " + String.valueOf(average13));
-
+			writer.write("\n");
+			writer.write("Number of iterations to make MCTS: " + String.valueOf(numIterBuildTreeSave));
+			writer.write("\n");
+			writer.write("Number of closest neighbors to expand: " + String.valueOf(nNeighExpand));
+			
 			writer.flush();
 			writer.close();
-			System.exit(0);
-		} catch (IOException e) {
-			e.printStackTrace();
-		}
-
-	}
-
-	public static void writeCsvFile(String fileName) {
-		// Delimiter used in CSV file
-		final String NEW_LINE_SEPARATOR = ";";
-
-		try {
-			FileWriter fileWriter = new FileWriter(fileName, true);
-
-			// get average
-			double toAdd0 = 0;
-			double toAdd1 = 0;
-			double toAdd2 = 0;
-			double toAdd3 = 0;
-			double toAdd4 = 0;
-			double toAdd5 = 0;
-			double toAdd6 = 0;
-			double toAdd7 = 0;
-			double toAdd8 = 0;
-			double toAdd9 = 0;
-			double toAdd10 = 0;
-			double toAdd11 = 0;
-			double toAdd12 = 0;
-			double toAdd13 = 0;
-			for (int i = 0; i < sims.length; i++) {
-				toAdd0 = toAdd0 + sims[i][0];
-				toAdd1 = toAdd1 + sims[i][1];
-				toAdd2 = toAdd2 + sims[i][2];
-				toAdd3 = toAdd3 + sims[i][3];
-				toAdd4 = toAdd4 + sims[i][4];
-				toAdd5 = toAdd5 + sims[i][5];
-				toAdd6 = toAdd6 + sims[i][6];
-				toAdd7 = toAdd7 + sims[i][7];
-				toAdd8 = toAdd8 + sims[i][8];
-				toAdd9 = toAdd9 + sims[i][9];
-				toAdd10 = toAdd10 + sims[i][10];
-				toAdd11 = toAdd11 + sims[i][11];
-				toAdd12 = toAdd12 + sims[i][12];
-				toAdd13 = toAdd13 + sims[i][13];
-			}
-			Double average0 = toAdd0 / sims.length;
-			Double average1 = toAdd1 / sims.length;
-			Double average2 = toAdd2 / sims.length;
-			Double average3 = toAdd3 / sims.length;
-			Double average4 = toAdd4 / sims.length;
-			Double average5 = toAdd5 / sims.length;
-			Double average6 = toAdd6 / sims.length;
-			Double average7 = toAdd7 / sims.length;
-			Double average8 = toAdd8 / sims.length;
-			Double average9 = toAdd9 / sims.length;
-			Double average10 = toAdd10 / sims.length;
-			Double average11 = toAdd11 / sims.length;
-			Double average12 = toAdd12 / sims.length;
-			Double average13 = toAdd13 / sims.length;
-
-			// get standard deviations
-			double[] simsSD = new double[sims.length];
-			for (int i = 0; i < sims.length; i++) {
-				simsSD[i] = sims[i][0] - toAdd0;
-			}
-			double SD = 0;
-			for (int j = 0; j < sims.length; j++) {
-				SD = SD + simsSD[j];
-			}
-
-			// write all results
-			fileWriter.append("\n");
-			fileWriter.append("randomMethod");
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average0));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average1));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average2));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average3));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average4));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average5));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average6));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average7));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average8));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average9));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average10));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average11));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average12));
-			fileWriter.append(NEW_LINE_SEPARATOR);
-			fileWriter.append(String.valueOf(average13));
-
-			fileWriter.flush();
-			fileWriter.close();
 			System.exit(0);
 		} catch (IOException e) {
 			e.printStackTrace();
@@ -498,11 +384,12 @@ public class SimulatorMCTSNaiveNoGUI {
 	}
 
 	private static void expandNode(Node toExpand) {
-		// will expand the node as long as the node is not a terminal state and the distance is not overcome
+		// will expand the node as long as the node is not a terminal state and
+		// the distance is not overcome
 		if (!isTerminalState(toExpand, nNeighExpand)) {
 			// starts as leaf, some number of actions are added
 			ArrayList<House> neighbors = getNeighbors(toExpand, nNeighExpand);
-		
+
 			Iterator<House> neighborIter = neighbors.iterator();
 			// add all children
 			while (neighborIter.hasNext()) {
@@ -533,7 +420,7 @@ public class SimulatorMCTSNaiveNoGUI {
 				if (!isTerminalState(tree.curr, nNeighExpand)) {
 					expandNode(tree.curr);
 				}
-				
+
 				// find most promising child as well
 				tree.curr = getBestChild(tree.curr);
 			}
@@ -562,15 +449,16 @@ public class SimulatorMCTSNaiveNoGUI {
 				tree.curr.setQVal(qValToAdd);
 				tree.curr = tree.curr.getParent();
 			}
+			
 			// need to add to final count for the ROOT NODE, otherwise will not update
 			tree.curr.addCount();
 			tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
 			float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
 			tree.curr.setQVal(qValToAdd);
-		
+
 			// reset the curr
 			tree.curr = tree.root;
-			
+
 			// update iterations
 			numIterBuildTree = numIterBuildTree - 1;
 		}
@@ -622,8 +510,7 @@ public class SimulatorMCTSNaiveNoGUI {
 
 			// add point for triangulation, draw function will get the
 			// triangulation and draw it
-			triPointList.add(
-					new Vertex((double) prevMark.getLongitude(), (double) prevMark.getLatitude()));
+			triPointList.add(new Vertex((double) prevMark.getLongitude(), (double) prevMark.getLatitude()));
 
 			// next house to search (MCTS algorithm)
 			House nextU = null;
@@ -652,6 +539,53 @@ public class SimulatorMCTSNaiveNoGUI {
 			tree.curr = maxChild;
 		}
 	}
+	
+	public static void traverseTreeCount() {
+		House prevMark = null;
+		while (!tree.curr.isLeaf()) {
+			// pause between each decision made
+			try {
+				Thread.sleep(pause);
+			} catch (InterruptedException e) {
+			}
+
+			prevMark = tree.curr.getHouse();
+
+			// the previous house has now been 'clicked'
+			prevMark.setSearched(true);
+
+			// add point for triangulation, draw function will get the
+			// triangulation and draw it
+			triPointList.add(new Vertex((double) prevMark.getLongitude(), (double) prevMark.getLatitude()));
+
+			// next house to search (MCTS algorithm)
+			House nextU = null;
+			Iterator<Node> childIter = tree.curr.getChildren().iterator();
+			Node maxChild = childIter.next();
+			while (childIter.hasNext()) {
+				Node toCheck = childIter.next();
+				if (toCheck.getCount() + toCheck.getQVal() > maxChild.getCount() + maxChild.getQVal()) {
+					maxChild = toCheck;
+				}
+			}
+			nextU = maxChild.getHouse();
+
+			// update the distance left to travel
+			distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
+
+			// update the total distance
+			totalDistance = totalDistance + prevMark.getDistanceTo(nextU);
+
+			// add line to show path
+			HouseLine toAddLine = new HouseLine(prevMark, nextU);
+
+			lineList.add(toAddLine);
+
+			// update the curr of the tree
+			tree.curr = maxChild;
+		}
+	}
+	
 
 	// From the given house, get the closest house that is the color given
 	public static House getClosestColor(House lm, int color) {
@@ -673,11 +607,11 @@ public class SimulatorMCTSNaiveNoGUI {
 	public static void main(String args[]) {
 		// read all houses into the simulation
 		try {
-			readHouseGPS();
-		} catch (IOException e1) {
-			e1.printStackTrace();
+			readHouses();
+		} catch (IOException e2) {
+			e2.printStackTrace();
 		}
-		
+
 		File fileName = new File(args[0]);
 		outputFileName = args[0];
 		BufferedReader br = null;
@@ -686,7 +620,7 @@ public class SimulatorMCTSNaiveNoGUI {
 		} catch (FileNotFoundException e1) {
 			e1.printStackTrace();
 		}
-		
+
 		String pauseToParse = null;
 		String simsToParse = null;
 		String distToParse = null;
@@ -713,7 +647,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			nNeighExpandToParse = br.readLine();
 			nNeighExpandToParse = nNeighExpandToParse.trim();
 			nNeighExpandToParse = nNeighExpandToParse.replaceAll("NUM_NEIGHBORS_EXPANSION = ", "");
-			
+
 			numIterBuildTreeToParse = br.readLine();
 			numIterBuildTreeToParse = numIterBuildTreeToParse.trim();
 			numIterBuildTreeToParse = numIterBuildTreeToParse.replaceAll("NUM_ITER_BUILD_TREE = ", "");
@@ -734,7 +668,7 @@ public class SimulatorMCTSNaiveNoGUI {
 		tree = new MCTSTree(new Node(null, houseList.get(2), (float) distanceLeftToTravelSave));
 		makeMCTS();
 		traverseTree();
-		
+
 		// write all results
 		// display triangulation
 		Triangulation delaunayMesh = new Triangulation();
@@ -763,8 +697,7 @@ public class SimulatorMCTSNaiveNoGUI {
 				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
 
 				// check if point is within boundaryTriangle
-				if (boundTri.contains(new Point((double) cntHouse.getLongitude(),
-						(double) cntHouse.getLatitude()))) {
+				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
 					cntHouses[cnt] = cntHouses[cnt] + 1;
 					total++;
 				}
