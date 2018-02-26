@@ -44,7 +44,6 @@ public class SimulatorMCTSNaiveNoGUI {
 	static List<House> houseList = new ArrayList<House>();
 	static List<HouseLine> lineList = new ArrayList<HouseLine>();
 	
-
 	// MCTS global variables
 	static MCTSTree tree = null;
 	static int Cp = 1;
