@@ -60,7 +60,7 @@ public class House {
 	        return false;
 	    }
 	    final House other = (House) toCompare;
-	    if (this.unicode == other.getUnicode()) {
+	    if (this.unicode.equals(other.getUnicode())) {
 	    	return true;
 	    } else {
 	    	return false;

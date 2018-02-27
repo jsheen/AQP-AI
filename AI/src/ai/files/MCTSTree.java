@@ -5,12 +5,12 @@ import java.util.List;
 
 public class MCTSTree {
 	
-	Node root = null;
+	Node root = null; // true root node
 	Node curr = null;
 	
-	public MCTSTree(Node toAddRoot) {
-		root = toAddRoot;
-		curr = toAddRoot;
+	public MCTSTree(float toAddDistance) {
+		root = new Node(null, null, toAddDistance);
+		curr = root;
 	}
 	
 	public static class Node
@@ -28,6 +28,14 @@ public class MCTSTree {
 		  parent = toAddParent;
 	      house = toAddHouse;
 	      dist = toAddDist;
+	   }
+	   
+	   public boolean isRoot() {
+		   if (parent == null & house == null) {
+			   return true;
+		   } else {
+			   return false;
+		   }
 	   }
 	   
 	   public void addChild(Node toAdd) {
@@ -87,9 +95,9 @@ public class MCTSTree {
 	   }
 	   
 	   public boolean isAncestorHouse(House toCheck) {
-		   if (this.parent == null) {
+		   if (this.isRoot()) {
 			   return false;
-		   } else if (this.house == toCheck) {
+		   } else if (this.house.equals(toCheck)) {
 			   return true;
 		   } else {
 			   return this.parent.isAncestorHouse(toCheck);
@@ -98,7 +106,7 @@ public class MCTSTree {
 	   
 	   public int getLengthBranch() {
 		   // get number of edges
-		   if (this.parent == null) {
+		   if (this.isRoot()) {
 			   return 1;
 		   } else {
 			   return this.parent.getLengthBranch() + 1;
@@ -106,7 +114,7 @@ public class MCTSTree {
 	   }
 	   
 	   public int howLongIsBranch() {
-		   if (this.parent == null) {
+		   if (this.isRoot()) {
 			   return 0;
 		   } else {
 			   return 1 + this.parent.howLongIsBranch();

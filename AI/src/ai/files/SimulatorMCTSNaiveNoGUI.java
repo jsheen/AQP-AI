@@ -11,10 +11,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 import ai.files.MCTSTree.Node;
 import ai.files.Triangulation.InvalidVertexException;
@@ -44,7 +46,7 @@ public class SimulatorMCTSNaiveNoGUI {
 											// allowed to travel) (kilometers)
 	static double totalDistance = 0; // total distance traveled for end game
 										// output
-	static List<Vertex> triPointList = new ArrayList<Vertex>();
+	static Set<Vertex> triPointSet = new HashSet<Vertex>();
 	static String outputFileName = "error";
 	static List<House> houseList = new ArrayList<House>();
 	static List<HouseLine> lineList = new ArrayList<HouseLine>();
@@ -173,16 +175,16 @@ public class SimulatorMCTSNaiveNoGUI {
 			}
 		}
 		// left bottom corner
-		triPointList.add(new Vertex(minLon.doubleValue() - 0.0001, minLat.doubleValue() - 0.0001));
+		triPointSet.add(new Vertex(minLon.doubleValue() - 0.0001, minLat.doubleValue() - 0.0001));
 
 		// left top corner
-		triPointList.add(new Vertex(minLon.doubleValue() - 0.0001, maxLat.doubleValue() + 0.0001));
+		triPointSet.add(new Vertex(minLon.doubleValue() - 0.0001, maxLat.doubleValue() + 0.0001));
 
 		// right bottom corner
-		triPointList.add(new Vertex(maxLon.doubleValue() + 0.0001, minLat.doubleValue() - 0.0001));
+		triPointSet.add(new Vertex(maxLon.doubleValue() + 0.0001, minLat.doubleValue() - 0.0001));
 
 		// right top corner
-		triPointList.add(new Vertex(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001));
+		triPointSet.add(new Vertex(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001));
 	}
 
 	// get closest neighbors helper function
@@ -326,8 +328,9 @@ public class SimulatorMCTSNaiveNoGUI {
 	}
 
 	private static Node getBestChild(Node parent) {
-		if (parent.getChildren().isEmpty()) {
-			throw new java.lang.Error("parent has no children");
+		// if this node has no children, then just return the parent
+		if (parent.isLeaf()) {
+			return parent;
 		}
 		List<Node> children = parent.getChildren();
 		int maxChildDex = 0;
@@ -380,22 +383,34 @@ public class SimulatorMCTSNaiveNoGUI {
 	}
 
 	private static void expandNode(Node toExpand) {
-		// will expand the node as long as the node is not a terminal state and
-		// the distance is not overcome
-		if (!isTerminalState(toExpand, nNeighExpand)) {
-			// starts as leaf, some number of actions are added
-			ArrayList<House> neighbors = getNeighbors(toExpand, nNeighExpand);
+		if (toExpand.isRoot()) {
+			// add all houses of the search zone
+			for (House house : houseList) {
+				toExpand.addChild(new Node(toExpand, house, toExpand.getDist()));
+			}
 
-			Iterator<House> neighborIter = neighbors.iterator();
-			// add all children
-			while (neighborIter.hasNext()) {
-				House houseToAdd = neighborIter.next();
-				float distToNeighbor = (float) toExpand.getHouse().getDistanceTo(houseToAdd);
-				float distLeft = toExpand.getDist() - distToNeighbor;
-				if (distLeft > 0) { // only add the child if it does not go over
-									// the rest of the distance
-					toExpand.addChild(new Node(toExpand, houseToAdd, distLeft));
+		} else {
+			// will expand the node as long as the node is not a terminal state
+			// and
+			// the distance is not overcome
+			if (!isTerminalState(toExpand, nNeighExpand)) {
+				// starts as leaf, some number of actions are added
+				ArrayList<House> neighbors = getNeighbors(toExpand, nNeighExpand);
+
+				Iterator<House> neighborIter = neighbors.iterator();
+				// add all children
+				while (neighborIter.hasNext()) {
+					House houseToAdd = neighborIter.next();
+					float distToNeighbor = (float) toExpand.getHouse().getDistanceTo(houseToAdd);
+					float distLeft = toExpand.getDist() - distToNeighbor;
+					if (distLeft > 0) { // only add the child if it does not go
+										// over
+										// the rest of the distance
+						toExpand.addChild(new Node(toExpand, houseToAdd, distLeft));
+					}
 				}
+			} else {
+				// nothing
 			}
 		}
 	}
@@ -404,7 +419,8 @@ public class SimulatorMCTSNaiveNoGUI {
 		while (numIterBuildTree > 0) {
 			System.out.println(numIterBuildTree);
 			// Part I: Selection
-			// find the child that maximizes the algorithm, and eventually the leaf
+			// find the child that maximizes the algorithm, and eventually the
+			// leaf
 			while (!tree.curr.isLeaf()) {
 				Node bestChild = getBestChild(tree.curr);
 				tree.curr = bestChild;
@@ -413,17 +429,16 @@ public class SimulatorMCTSNaiveNoGUI {
 			// Part II: Expansion
 			if (tree.curr.getCount() != 0) {
 				// add children to the current node
-				if (!isTerminalState(tree.curr, nNeighExpand)) {
-					expandNode(tree.curr);
-				}
+				expandNode(tree.curr);
 
-				// find most promising child as well
+				// find most promising child as well for rollout
 				tree.curr = getBestChild(tree.curr);
 			}
 
-			// Part III: Rollout (do this from whichever node is set as curr in the tree)
+			// Part III: Rollout (do this from whichever node is set as curr in
+			// the tree)
 			double ROVal = 0;
-			if (!isTerminalState(tree.curr, nNeighExpand)) {
+			if (!tree.curr.isRoot()) {
 				double simIter = 5;
 				double sumSimVals = 0;
 				while (simIter > 0) {
@@ -437,7 +452,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			}
 
 			// Part IV: Update
-			while (tree.curr.getParent() != null) {
+			while (!tree.curr.isRoot()) {
 				tree.curr.addCount();
 				tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
 
@@ -445,11 +460,11 @@ public class SimulatorMCTSNaiveNoGUI {
 				tree.curr.setQVal(qValToAdd);
 				tree.curr = tree.curr.getParent();
 			}
-			// need to add to final count for the ROOT NODE, otherwise will not update
+			// need to add to final count for the ROOT NODE, otherwise will not
+			// update
+			// we do not need qValue for the root node for this makes no sense
+			// to have
 			tree.curr.addCount();
-			tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
-			float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
-			tree.curr.setQVal(qValToAdd);
 
 			// reset the curr
 			tree.curr = tree.root;
@@ -458,19 +473,23 @@ public class SimulatorMCTSNaiveNoGUI {
 			numIterBuildTree = numIterBuildTree - 1;
 		}
 		// print tree to debug / look for errors
-		tree.curr.printQvalTree(1);
+		//tree.curr.printQvalTree(1);
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
+		if (isTerminalState(toSimulate, nNeighExpand)) {
+			return 0;
+		}
+
 		Node curr = new Node(toSimulate.getParent(), toSimulate.getHouse(), toSimulate.getDist());
 		double sum = 0;
 		int cnt = 1;
 		List<Vertex> listV = new ArrayList<Vertex>();
-		
+
 		while (!isTerminalState(curr, nNeighExpand)) {
 			// add to triangulation list
 			listV.add(new Vertex((double) curr.getHouse().getLongitude(), (double) curr.getHouse().getLatitude()));
-			
+
 			// update sum value
 			if (curr.getHouse().getCategory() == 1) {
 				sum = sum + 0.2;
@@ -487,14 +506,12 @@ public class SimulatorMCTSNaiveNoGUI {
 			Random random = new Random();
 			random.setSeed(42);
 			Node next = curr.getChildren().get(random.nextInt(curr.getChildren().size()));
-	        curr = next;
+			curr = next;
 			// keep track of how deep the branch is
 			cnt++;
 		}
 		// add last leaf node to count
 		cnt++;
-		// int triMaxVal = getTriangulationMaxValue(listV);
-        // TODO: (sum / cnt) + (triMaxVal / 300)
 		return sum / cnt;
 	}
 
@@ -511,44 +528,58 @@ public class SimulatorMCTSNaiveNoGUI {
 			} catch (InterruptedException e) {
 			}
 
-			prevMark = tree.curr.getHouse();
-
-			// the previous house has now been 'clicked'
-			prevMark.setSearched(true);
-			houses.add(new SimplePointMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude())));
-
-			// add point for triangulation, draw function will get the
-			// triangulation and draw it
-			triPointList.add(new Vertex((double) prevMark.getLongitude(), (double) prevMark.getLatitude()));
-
-			// next house to search (MCTS algorithm)
-			House nextU = null;
-			Iterator<Node> childIter = tree.curr.getChildren().iterator();
-			Node maxChild = childIter.next();
-			while (childIter.hasNext()) {
-				Node toCheck = childIter.next();
-				if (toCheck.getQVal() > maxChild.getQVal()) {
-					maxChild = toCheck;
+			if (tree.curr.isRoot()) {
+				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Node maxChild = childIter.next();
+				while (childIter.hasNext()) {
+					Node toCheck = childIter.next();
+					if (toCheck.getQVal() > maxChild.getQVal()) {
+						maxChild = toCheck;
+					}
 				}
+				tree.curr = maxChild;
+			} else {
+				prevMark = tree.curr.getHouse();
+
+				// the previous house has now been 'clicked'
+				prevMark.setSearched(true);
+				houses.add(new SimplePointMarker(
+						new Location((double) prevMark.getLatitude(), (double) prevMark.getLongitude())));
+
+				// add point for triangulation, draw function will get the
+				// triangulation and draw it
+				Vertex toAddVertex = new Vertex(prevMark.getLongitude(), prevMark.getLatitude());
+				triPointSet.add(toAddVertex);
+
+				// next house to search (MCTS algorithm)
+				House nextU = null;
+				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Node maxChild = childIter.next();
+				while (childIter.hasNext()) {
+					Node toCheck = childIter.next();
+					if (toCheck.getQVal() > maxChild.getQVal()) {
+						maxChild = toCheck;
+					}
+				}
+				nextU = maxChild.getHouse();
+
+				// update the distance left to travel
+				distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
+
+				// update the total distance
+				totalDistance = totalDistance + prevMark.getDistanceTo(nextU);
+
+				// add line to show path
+				HouseLine toAddLine = new HouseLine(prevMark, nextU);
+
+				lineList.add(toAddLine);
+
+				lines.add(new SimpleLinesMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude()),
+						new Location(nextU.getLatitude(), nextU.getLongitude())));
+
+				// update the curr of the tree
+				tree.curr = maxChild;
 			}
-			nextU = maxChild.getHouse();
-
-			// update the distance left to travel
-			distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
-
-			// update the total distance
-			totalDistance = totalDistance + prevMark.getDistanceTo(nextU);
-
-			// add line to show path
-			HouseLine toAddLine = new HouseLine(prevMark, nextU);
-
-			lineList.add(toAddLine);
-
-			lines.add(new SimpleLinesMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude()),
-					new Location(nextU.getLatitude(), nextU.getLongitude())));
-
-			// update the curr of the tree
-			tree.curr = maxChild;
 		}
 
 		// write locations for the displaypath class
@@ -587,52 +618,6 @@ public class SimulatorMCTSNaiveNoGUI {
 
 	}
 
-	public static void traverseTreeCount() {
-		House prevMark = null;
-		while (!tree.curr.isLeaf()) {
-			// pause between each decision made
-			try {
-				Thread.sleep(pause);
-			} catch (InterruptedException e) {
-			}
-
-			prevMark = tree.curr.getHouse();
-
-			// the previous house has now been 'clicked'
-			prevMark.setSearched(true);
-
-			// add point for triangulation, draw function will get the
-			// triangulation and draw it
-			triPointList.add(new Vertex((double) prevMark.getLongitude(), (double) prevMark.getLatitude()));
-
-			// next house to search (MCTS algorithm)
-			House nextU = null;
-			Iterator<Node> childIter = tree.curr.getChildren().iterator();
-			Node maxChild = childIter.next();
-			while (childIter.hasNext()) {
-				Node toCheck = childIter.next();
-				if (toCheck.getCount() + toCheck.getQVal() > maxChild.getCount() + maxChild.getQVal()) {
-					maxChild = toCheck;
-				}
-			}
-			nextU = maxChild.getHouse();
-
-			// update the distance left to travel
-			distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
-
-			// update the total distance
-			totalDistance = totalDistance + prevMark.getDistanceTo(nextU);
-
-			// add line to show path
-			HouseLine toAddLine = new HouseLine(prevMark, nextU);
-
-			lineList.add(toAddLine);
-
-			// update the curr of the tree
-			tree.curr = maxChild;
-		}
-	}
-
 	// From the given house, get the closest house that is the color given
 	public static House getClosestColor(House lm, int color) {
 		House toReturn = null;
@@ -648,96 +633,6 @@ public class SimulatorMCTSNaiveNoGUI {
 			}
 		}
 		return toReturn;
-	}
-
-	public static double getTriangulationAverageValue(List<Vertex> listV) {
-		// get triangulation
-		Triangulation delaunayMesh = new Triangulation();
-		delaunayMesh.addAllVertices(listV);
-		try {
-			delaunayMesh.triangulate();
-		} catch (InvalidVertexException e) {
-			e.printStackTrace();
-		}
-
-		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
-
-		// get triangle information
-		int[] cntHouses = new int[triList.size()];
-
-		int cnt = 0;
-		int total = 0;
-		for (Triangle t : triList) {
-			for (House cntHouse : houseList) {
-				// make boundaryTriangle
-				Point[] vertices = new Point[3];
-
-				vertices[0] = new Point(t.a.x, t.a.y);
-				vertices[1] = new Point(t.b.x, t.b.y);
-				vertices[2] = new Point(t.c.x, t.c.y);
-				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
-
-				// check if point is within boundaryTriangle
-				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
-					cntHouses[cnt] = cntHouses[cnt] + 1;
-					total++;
-				}
-			}
-			cnt++;
-		}
-		Arrays.sort(cntHouses);
-		List<Integer> listCntHouses = new ArrayList<>();
-		for (int a : cntHouses) {
-			listCntHouses.add(0, a);
-		}
-
-		Double averageTri = (double) total / (double) cntHouses.length;
-		return averageTri;
-	}
-	public static int getTriangulationMaxValue(List<Vertex> listV) {
-		// get triangulation
-		Triangulation delaunayMesh = new Triangulation();
-		delaunayMesh.addAllVertices(listV);
-		try {
-			delaunayMesh.triangulate();
-		} catch (InvalidVertexException e) {
-			e.printStackTrace();
-		}
-
-		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
-
-		// get triangle information
-		int[] cntHouses = new int[triList.size()];
-
-		int cnt = 0;
-		@SuppressWarnings("unused")
-		int total = 0;
-		for (Triangle t : triList) {
-			for (House cntHouse : houseList) {
-				// make boundaryTriangle
-				Point[] vertices = new Point[3];
-
-				vertices[0] = new Point(t.a.x, t.a.y);
-				vertices[1] = new Point(t.b.x, t.b.y);
-				vertices[2] = new Point(t.c.x, t.c.y);
-				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
-
-				// check if point is within boundaryTriangle
-				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
-					cntHouses[cnt] = cntHouses[cnt] + 1;
-					total++;
-				}
-			}
-			cnt++;
-		}
-		Arrays.sort(cntHouses);
-		List<Integer> listCntHouses = new ArrayList<>();
-		for (int a : cntHouses) {
-			listCntHouses.add(0, a);
-		}
-		int maxValue = listCntHouses.get(0);
-
-		return maxValue;
 	}
 
 	public static void main(String args[]) {
@@ -801,14 +696,56 @@ public class SimulatorMCTSNaiveNoGUI {
 		numIterBuildTreeSave = Integer.parseInt(numIterBuildTreeToParse);
 
 		// invoke MCTS function
-		tree = new MCTSTree(new Node(null, houseList.get(100), (float) distanceLeftToTravelSave));
+		tree = new MCTSTree((float) distanceLeftToTravelSave);
 		makeMCTS();
 		traverseTree();
 
 		// write all results
-		int maxTri = getTriangulationMaxValue(triPointList);
-		Double averageTri = getTriangulationAverageValue(triPointList);
-		
+		// delaunay triangulation results
+		List<Vertex> listV = new ArrayList<Vertex>();
+		listV.addAll(triPointSet);
+
+		// get triangulation
+		Triangulation delaunayMesh = new Triangulation();
+		delaunayMesh.addAllVertices(listV);
+		try {
+			delaunayMesh.triangulate();
+		} catch (InvalidVertexException e) {
+			e.printStackTrace();
+		}
+
+		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
+		// get triangle information
+		int[] cntHouses = new int[triList.size()];
+
+		int cnt = 0;
+		int total = 0;
+		for (Triangle t : triList) {
+			for (House cntHouse : houseList) {
+				// make boundaryTriangle
+				Point[] vertices = new Point[3];
+
+				vertices[0] = new Point(t.a.x, t.a.y);
+				vertices[1] = new Point(t.b.x, t.b.y);
+				vertices[2] = new Point(t.c.x, t.c.y);
+				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
+
+				// check if point is within boundaryTriangle
+				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
+					cntHouses[cnt] = cntHouses[cnt] + 1;
+					total++;
+				}
+			}
+			cnt++;
+		}
+		Arrays.sort(cntHouses);
+		List<Integer> listCntHouses = new ArrayList<>();
+		for (int a : cntHouses) {
+			listCntHouses.add(0, a);
+		}
+		int maxValue = listCntHouses.get(0);
+		Double averageTri = (double) total / (double) cntHouses.length;
+
 		// tally up score
 		int cntInfestSearch = 0;
 		int cntSearch = 0;
@@ -847,7 +784,6 @@ public class SimulatorMCTSNaiveNoGUI {
 		}
 
 		if (nSims > 0) {
-			System.out.println(nSims);
 			// save results in table
 			sims[nSims - 1][0] = houseList.size();
 			sims[nSims - 1][1] = cntSearch;
@@ -859,7 +795,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			sims[nSims - 1][7] = cntLowRiskSearched;
 			sims[nSims - 1][8] = cntMostLowRiskSearched;
 			sims[nSims - 1][9] = totalDistance;
-			sims[nSims - 1][10] = maxTri;
+			sims[nSims - 1][10] = maxValue;
 			sims[nSims - 1][11] = averageTri;
 			sims[nSims - 1][12] = distanceLeftToTravelSave;
 			sims[nSims - 1][13] = sims.length;
@@ -873,7 +809,7 @@ public class SimulatorMCTSNaiveNoGUI {
 				lineList = new ArrayList<HouseLine>();
 				distanceLeftToTravel = distanceLeftToTravelSave;
 				totalDistance = 0;
-				triPointList = new ArrayList<Vertex>();
+				triPointSet = new HashSet<Vertex>();
 				numIterBuildTree = numIterBuildTreeSave;
 
 				// invoke next simulation
