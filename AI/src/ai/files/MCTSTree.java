@@ -53,11 +53,7 @@ public class MCTSTree {
 	   public void addCount() {
 		   count = count + 1;
 	   }
-	   
-	   public void setCount(int toSetCount) {
-		   count = toSetCount;
-	   }
-	   
+
 	   public void setSumVals(float toSetSumVal) {
 		   sumVals = toSetSumVal;
 	   }
@@ -115,6 +111,26 @@ public class MCTSTree {
 		   } else {
 			   return 1 + this.parent.howLongIsBranch();
 		   }
+	   }
+	   
+	   public void printQvalTree(int level) {
+		   for (int i = 1; i < level; i++) {
+		        System.out.print("\t");
+		    }
+		    System.out.println(this.qVal);
+		    for (Node child : children) {
+		        child.printQvalTree(level + 1);
+		    }
+	   }
+	   
+	   public void printCountTree(int level) {
+		   for (int i = 1; i < level; i++) {
+		        System.out.print("\t");
+		    }
+		    System.out.println(this.count);
+		    for (Node child : children) {
+		        child.printCountTree(level + 1);
+		    }
 	   }
 	}
 }

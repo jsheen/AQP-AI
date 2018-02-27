@@ -18,9 +18,14 @@ import java.util.Random;
 
 import ai.files.MCTSTree.Node;
 import ai.files.Triangulation.InvalidVertexException;
+import de.fhpotsdam.unfolding.geo.Location;
+import de.fhpotsdam.unfolding.marker.SimpleLinesMarker;
+import de.fhpotsdam.unfolding.marker.SimplePointMarker;
 
 /**
  * Chiri Run AI Simulator February 2018
+ * 
+ * NO GUI
  * 
  * Simulator to test AI methods
  * 
@@ -46,7 +51,7 @@ public class SimulatorMCTSNaiveNoGUI {
 
 	// MCTS global variables
 	static MCTSTree tree = null;
-	static int Cp = 1;
+	static double Cp = 0.9;
 	static int nNeighExpand = 1;
 	static int numIterBuildTree = 50;
 	static int numIterBuildTreeSave = 50;
@@ -61,27 +66,18 @@ public class SimulatorMCTSNaiveNoGUI {
 		String currentLine = br.readLine();
 		while (!currentLine.equals("..........")) {
 			String uni = currentLine;
-			//System.out.println(uni);
 			String lat = br.readLine();
-			//System.out.println(lat);
 			String lon = br.readLine();
-			//System.out.println(lon);
 			String block = br.readLine();
-			//System.out.println(block);
 			String quant = br.readLine();
-			//System.out.println(quant);
 			if (block.equals("NA")) {
 				// do nothing
 			} else {
-				House houseToAdd = new House(uni, 
-						Integer.parseInt(block), 
-						Float.parseFloat(lat), 
-						Float.parseFloat(lon),
+				House houseToAdd = new House(uni, Integer.parseInt(block), Float.parseFloat(lat), Float.parseFloat(lon),
 						Integer.parseInt(quant));
 				houseList.add(houseToAdd);
 			}
 			currentLine = br.readLine();
-
 		}
 
 		// because it was ".........." before
@@ -100,7 +96,7 @@ public class SimulatorMCTSNaiveNoGUI {
 
 			// because it was previously the focal unicode
 			currentLine = br.readLine();
-			
+
 			// neighbors of focal house
 			ArrayList<House> neighbors = new ArrayList<House>();
 			while (!currentLine.equals(".....")) {
@@ -115,7 +111,7 @@ public class SimulatorMCTSNaiveNoGUI {
 				currentLine = br.readLine();
 			}
 			houseMap.put(focal, neighbors);
-			
+
 			// go to next focal unicode
 			currentLine = br.readLine();
 		}
@@ -192,7 +188,7 @@ public class SimulatorMCTSNaiveNoGUI {
 	// get closest neighbors helper function
 	public static ArrayList<House> getNeighbors(Node n, int nNeigh) {
 		ArrayList<House> neighbors = houseMap.get(n.getHouse());
-		
+
 		ArrayList<House> toReturn = new ArrayList<House>();
 		for (House neighbor : neighbors) {
 			if (toReturn.size() == nNeigh) {
@@ -203,7 +199,7 @@ public class SimulatorMCTSNaiveNoGUI {
 				}
 			}
 		}
-		
+
 		return toReturn;
 	}
 
@@ -319,7 +315,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			writer.write("Number of iterations to make MCTS: " + String.valueOf(numIterBuildTreeSave));
 			writer.write("\n");
 			writer.write("Number of closest neighbors to expand: " + String.valueOf(nNeighExpand));
-			
+
 			writer.flush();
 			writer.close();
 			System.exit(0);
@@ -428,7 +424,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			// Part III: Rollout (do this from whichever node is set as curr in the tree)
 			double ROVal = 0;
 			if (!isTerminalState(tree.curr, nNeighExpand)) {
-				double simIter = 15;
+				double simIter = 5;
 				double sumSimVals = 0;
 				while (simIter > 0) {
 					// get simulation value
@@ -437,7 +433,7 @@ public class SimulatorMCTSNaiveNoGUI {
 					// update simulation iteration number
 					simIter = simIter - 1;
 				}
-				ROVal = sumSimVals / 15;
+				ROVal = sumSimVals / 5;
 			}
 
 			// Part IV: Update
@@ -445,11 +441,10 @@ public class SimulatorMCTSNaiveNoGUI {
 				tree.curr.addCount();
 				tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
 
-				float qValToAdd = (1 / tree.curr.getCount()) * tree.curr.getSumVals();
+				float qValToAdd = (1 / (float) tree.curr.getCount()) * tree.curr.getSumVals();
 				tree.curr.setQVal(qValToAdd);
 				tree.curr = tree.curr.getParent();
 			}
-			
 			// need to add to final count for the ROOT NODE, otherwise will not update
 			tree.curr.addCount();
 			tree.curr.setSumVals((float) (tree.curr.getSumVals() + ROVal));
@@ -462,13 +457,20 @@ public class SimulatorMCTSNaiveNoGUI {
 			// update iterations
 			numIterBuildTree = numIterBuildTree - 1;
 		}
+		// print tree to debug / look for errors
+		tree.curr.printQvalTree(1);
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
 		Node curr = new Node(toSimulate.getParent(), toSimulate.getHouse(), toSimulate.getDist());
 		double sum = 0;
 		int cnt = 1;
+		List<Vertex> listV = new ArrayList<Vertex>();
+		
 		while (!isTerminalState(curr, nNeighExpand)) {
+			// add to triangulation list
+			listV.add(new Vertex((double) curr.getHouse().getLongitude(), (double) curr.getHouse().getLatitude()));
+			
 			// update sum value
 			if (curr.getHouse().getCategory() == 1) {
 				sum = sum + 0.2;
@@ -484,17 +486,23 @@ public class SimulatorMCTSNaiveNoGUI {
 			// go to random child
 			Random random = new Random();
 			random.setSeed(42);
-			curr = curr.getChildren().get(random.nextInt(curr.getChildren().size()));
+			Node next = curr.getChildren().get(random.nextInt(curr.getChildren().size()));
+	        curr = next;
 			// keep track of how deep the branch is
 			cnt++;
 		}
 		// add last leaf node to count
 		cnt++;
-
+		// int triMaxVal = getTriangulationMaxValue(listV);
+        // TODO: (sum / cnt) + (triMaxVal / 300)
 		return sum / cnt;
 	}
 
 	public static void traverseTree() {
+		ArrayList<SimplePointMarker> houses = new ArrayList<SimplePointMarker>();
+		ArrayList<SimpleLinesMarker> lines = new ArrayList<SimpleLinesMarker>();
+
+		// draw result
 		House prevMark = null;
 		while (!tree.curr.isLeaf()) {
 			// pause between each decision made
@@ -507,6 +515,7 @@ public class SimulatorMCTSNaiveNoGUI {
 
 			// the previous house has now been 'clicked'
 			prevMark.setSearched(true);
+			houses.add(new SimplePointMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude())));
 
 			// add point for triangulation, draw function will get the
 			// triangulation and draw it
@@ -535,11 +544,49 @@ public class SimulatorMCTSNaiveNoGUI {
 
 			lineList.add(toAddLine);
 
+			lines.add(new SimpleLinesMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude()),
+					new Location(nextU.getLatitude(), nextU.getLongitude())));
+
 			// update the curr of the tree
 			tree.curr = maxChild;
 		}
+
+		// write locations for the displaypath class
+		writeDisplay(houses);
 	}
-	
+
+	public static void writeDisplay(List<SimplePointMarker> houses) {
+		String fileName = new String("houses" + new Date());
+		fileName = fileName.replaceAll("\\s+", "");
+		fileName = fileName.replaceAll(":", "_");
+		File fileToWrite = new File("display/", fileName + ".txt");
+
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(fileToWrite));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+
+			Iterator<SimplePointMarker> iter = houses.iterator();
+			while (iter.hasNext()) {
+				SimplePointMarker spm = iter.next();
+				float Latitude = spm.getLocation().getLat();
+				writer.write(String.valueOf(Latitude));
+				writer.write("\n");
+				float Longitude = spm.getLocation().getLon();
+				writer.write(String.valueOf(Longitude));
+				writer.write("\n");
+			}
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+
+	}
+
 	public static void traverseTreeCount() {
 		House prevMark = null;
 		while (!tree.curr.isLeaf()) {
@@ -585,7 +632,6 @@ public class SimulatorMCTSNaiveNoGUI {
 			tree.curr = maxChild;
 		}
 	}
-	
 
 	// From the given house, get the closest house that is the color given
 	public static House getClosestColor(House lm, int color) {
@@ -602,6 +648,96 @@ public class SimulatorMCTSNaiveNoGUI {
 			}
 		}
 		return toReturn;
+	}
+
+	public static double getTriangulationAverageValue(List<Vertex> listV) {
+		// get triangulation
+		Triangulation delaunayMesh = new Triangulation();
+		delaunayMesh.addAllVertices(listV);
+		try {
+			delaunayMesh.triangulate();
+		} catch (InvalidVertexException e) {
+			e.printStackTrace();
+		}
+
+		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
+
+		// get triangle information
+		int[] cntHouses = new int[triList.size()];
+
+		int cnt = 0;
+		int total = 0;
+		for (Triangle t : triList) {
+			for (House cntHouse : houseList) {
+				// make boundaryTriangle
+				Point[] vertices = new Point[3];
+
+				vertices[0] = new Point(t.a.x, t.a.y);
+				vertices[1] = new Point(t.b.x, t.b.y);
+				vertices[2] = new Point(t.c.x, t.c.y);
+				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
+
+				// check if point is within boundaryTriangle
+				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
+					cntHouses[cnt] = cntHouses[cnt] + 1;
+					total++;
+				}
+			}
+			cnt++;
+		}
+		Arrays.sort(cntHouses);
+		List<Integer> listCntHouses = new ArrayList<>();
+		for (int a : cntHouses) {
+			listCntHouses.add(0, a);
+		}
+
+		Double averageTri = (double) total / (double) cntHouses.length;
+		return averageTri;
+	}
+	public static int getTriangulationMaxValue(List<Vertex> listV) {
+		// get triangulation
+		Triangulation delaunayMesh = new Triangulation();
+		delaunayMesh.addAllVertices(listV);
+		try {
+			delaunayMesh.triangulate();
+		} catch (InvalidVertexException e) {
+			e.printStackTrace();
+		}
+
+		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
+
+		// get triangle information
+		int[] cntHouses = new int[triList.size()];
+
+		int cnt = 0;
+		@SuppressWarnings("unused")
+		int total = 0;
+		for (Triangle t : triList) {
+			for (House cntHouse : houseList) {
+				// make boundaryTriangle
+				Point[] vertices = new Point[3];
+
+				vertices[0] = new Point(t.a.x, t.a.y);
+				vertices[1] = new Point(t.b.x, t.b.y);
+				vertices[2] = new Point(t.c.x, t.c.y);
+				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
+
+				// check if point is within boundaryTriangle
+				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
+					cntHouses[cnt] = cntHouses[cnt] + 1;
+					total++;
+				}
+			}
+			cnt++;
+		}
+		Arrays.sort(cntHouses);
+		List<Integer> listCntHouses = new ArrayList<>();
+		for (int a : cntHouses) {
+			listCntHouses.add(0, a);
+		}
+		int maxValue = listCntHouses.get(0);
+
+		return maxValue;
 	}
 
 	public static void main(String args[]) {
@@ -659,60 +795,20 @@ public class SimulatorMCTSNaiveNoGUI {
 		sims = new double[nSims][14];
 		distanceLeftToTravelSave = Double.parseDouble(distToParse);
 		distanceLeftToTravel = Double.parseDouble(distToParse);
-		Cp = Integer.parseInt(cpToParse);
+		Cp = Double.parseDouble(cpToParse);
 		nNeighExpand = Integer.parseInt(nNeighExpandToParse);
 		numIterBuildTree = Integer.parseInt(numIterBuildTreeToParse);
 		numIterBuildTreeSave = Integer.parseInt(numIterBuildTreeToParse);
 
 		// invoke MCTS function
-		tree = new MCTSTree(new Node(null, houseList.get(2), (float) distanceLeftToTravelSave));
+		tree = new MCTSTree(new Node(null, houseList.get(100), (float) distanceLeftToTravelSave));
 		makeMCTS();
 		traverseTree();
 
 		// write all results
-		// display triangulation
-		Triangulation delaunayMesh = new Triangulation();
-		delaunayMesh.addAllVertices(triPointList);
-		try {
-			delaunayMesh.triangulate();
-		} catch (InvalidVertexException e) {
-			e.printStackTrace();
-		}
-
-		LinkedHashSet<Triangle> triList = delaunayMesh.getTriangles();
-
-		// get triangle information
-		int[] cntHouses = new int[triList.size()];
-
-		int cnt = 0;
-		int total = 0;
-		for (Triangle t : triList) {
-			for (House cntHouse : houseList) {
-				// make boundaryTriangle
-				Point[] vertices = new Point[3];
-
-				vertices[0] = new Point(t.a.x, t.a.y);
-				vertices[1] = new Point(t.b.x, t.b.y);
-				vertices[2] = new Point(t.c.x, t.c.y);
-				BoundaryTriangle boundTri = new BoundaryTriangle(vertices);
-
-				// check if point is within boundaryTriangle
-				if (boundTri.contains(new Point((double) cntHouse.getLongitude(), (double) cntHouse.getLatitude()))) {
-					cntHouses[cnt] = cntHouses[cnt] + 1;
-					total++;
-				}
-			}
-			cnt++;
-		}
-		Arrays.sort(cntHouses);
-		List<Integer> listCntHouses = new ArrayList<>();
-		for (int a : cntHouses) {
-			listCntHouses.add(0, a);
-		}
-		int maxValue = listCntHouses.get(0);
-
-		Double averageTri = (double) total / (double) cntHouses.length;
-
+		int maxTri = getTriangulationMaxValue(triPointList);
+		Double averageTri = getTriangulationAverageValue(triPointList);
+		
 		// tally up score
 		int cntInfestSearch = 0;
 		int cntSearch = 0;
@@ -751,6 +847,7 @@ public class SimulatorMCTSNaiveNoGUI {
 		}
 
 		if (nSims > 0) {
+			System.out.println(nSims);
 			// save results in table
 			sims[nSims - 1][0] = houseList.size();
 			sims[nSims - 1][1] = cntSearch;
@@ -762,7 +859,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			sims[nSims - 1][7] = cntLowRiskSearched;
 			sims[nSims - 1][8] = cntMostLowRiskSearched;
 			sims[nSims - 1][9] = totalDistance;
-			sims[nSims - 1][10] = maxValue;
+			sims[nSims - 1][10] = maxTri;
 			sims[nSims - 1][11] = averageTri;
 			sims[nSims - 1][12] = distanceLeftToTravelSave;
 			sims[nSims - 1][13] = sims.length;
