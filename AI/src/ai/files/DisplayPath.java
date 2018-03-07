@@ -181,13 +181,13 @@ public class DisplayPath extends PApplet {
 	}
 
 	public static void readLines() throws IOException {
-		File fileName = new File("/Users/Justin/AQP-AI/AI/display/", "housesTueFeb2716_29_21PET2018.txt");
+		File fileName = new File("/Users/Justin/AQP-AI/AI/display/", "housesWedMar0711_27_19PET2018.txt");
 
 		// first read in all houses
 		BufferedReader br = new BufferedReader(new FileReader(fileName));
 		float lat1 = Float.parseFloat(br.readLine());
 		float lon1 = Float.parseFloat(br.readLine());
-		for (int i = 0; i < 9; i++) {
+		for (int i = 0; i < 1; i++) {
 			float lat2 = Float.parseFloat(br.readLine());
 			float lon2 = Float.parseFloat(br.readLine());
 			SimpleLinesMarker line = new SimpleLinesMarker(new Location(lat1, lon1), new Location(lat2, lon2));

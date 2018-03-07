@@ -58,6 +58,7 @@ public class SimulatorMCTSNaiveNoGUI {
 	static int numIterBuildTree = 50;
 	static int numIterBuildTreeSave = 50;
 	static HashMap<House, ArrayList<House>> houseMap = new HashMap<House, ArrayList<House>>();
+	static List<House> delHouses = new ArrayList<House>();
 
 	// creates houses
 	public static void readHouses() throws IOException {
@@ -185,6 +186,19 @@ public class SimulatorMCTSNaiveNoGUI {
 
 		// right top corner
 		triPointSet.add(new Vertex(maxLon.doubleValue() + 0.0001, maxLat.doubleValue() + 0.0001));
+		
+		// set the delaunay houses
+		for (House posDel : houseList) {
+			if (posDel.getUnicode().equals("1.13.100.245") | posDel.getUnicode().equals("1.13.100.16") | 
+					posDel.getUnicode().equals("1.13.100.321") | posDel.getUnicode().equals("1.13.100.505") | 
+					posDel.getUnicode().equals("1.13.100.347")) {
+				delHouses.add(posDel);
+			}
+		}
+		// make sure that the number of delaunay houses is correct
+		if (delHouses.size() != 5) {
+			throw new IllegalArgumentException("The number of Delaunay Houses is not correct");
+		}
 	}
 
 	// get closest neighbors helper function
@@ -385,13 +399,12 @@ public class SimulatorMCTSNaiveNoGUI {
 	private static void expandNode(Node toExpand) {
 		if (toExpand.isRoot()) {
 			// add all houses of the search zone
-			for (House house : houseList) {
+			for (House house : delHouses) {
 				toExpand.addChild(new Node(toExpand, house, toExpand.getDist()));
 			}
 
 		} else {
-			// will expand the node as long as the node is not a terminal state
-			// and
+			// will expand the node as long as the node is not a terminal state and
 			// the distance is not overcome
 			if (!isTerminalState(toExpand, nNeighExpand)) {
 				// starts as leaf, some number of actions are added
@@ -409,6 +422,20 @@ public class SimulatorMCTSNaiveNoGUI {
 						toExpand.addChild(new Node(toExpand, houseToAdd, distLeft));
 					}
 				}
+				
+				// add houses of the delaunay triangulation
+				Iterator<House> delIter = delHouses.iterator();
+				// add all delaunay houses
+				while (delIter.hasNext()) {
+					House delHouseToAdd = delIter.next();
+					float distToNeighbor = (float) toExpand.getHouse().getDistanceTo(delHouseToAdd);
+					float distLeft = toExpand.getDist() - distToNeighbor;
+					// only add the child if it does not go over the rest of the distance and not already added
+					if (distLeft > 0 & !neighbors.contains(delHouseToAdd) & !toExpand.isAncestorHouse(delHouseToAdd)) { 
+						toExpand.addChild(new Node(toExpand, delHouseToAdd, distLeft));
+					}
+				}
+				
 			} else {
 				// nothing
 			}
@@ -473,7 +500,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			numIterBuildTree = numIterBuildTree - 1;
 		}
 		// print tree to debug / look for errors
-		//tree.curr.printQvalTree(1);
+		// tree.curr.printQvalTree(1);
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
@@ -500,8 +527,15 @@ public class SimulatorMCTSNaiveNoGUI {
 			} else if (curr.getHouse().getCategory() == 4) {
 				sum = sum + 0.8;
 			}
+			
+			// update sum value with delaunay triangulation
+			if (delHouses.contains(curr.getHouse())) {
+				sum = sum + 2;
+			}
+			
 			// expand this current node
 			expandNode(curr);
+			
 			// go to random child
 			Random random = new Random();
 			random.setSeed(42);

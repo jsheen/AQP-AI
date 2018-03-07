@@ -4,6 +4,7 @@ import java.awt.geom.Rectangle2D;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -225,7 +226,12 @@ public strictfp class Triangulation {
 		 * Add vertices one at a time, updating the triangulation as we go.
 		 */
 		log.debug("Building Triangulation");
-		for (Vertex vertex : sortedVertices) {
+		// Justin code
+		Set<Vertex> sortedVertSet = new HashSet<Vertex>();
+		
+		sortedVertSet.addAll(sortedVertices);
+		
+		for (Vertex vertex : sortedVertSet) {
 			try {
 				addVertexToTriangulation(vertex);
 			} catch (InvalidVertexException e) {
