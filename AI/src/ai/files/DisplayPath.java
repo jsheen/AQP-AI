@@ -187,7 +187,7 @@ public class DisplayPath extends PApplet {
 		BufferedReader br = new BufferedReader(new FileReader(fileName));
 		float lat1 = Float.parseFloat(br.readLine());
 		float lon1 = Float.parseFloat(br.readLine());
-		for (int i = 0; i < 1; i++) {
+		for (int i = 0; i < 11; i++) {
 			float lat2 = Float.parseFloat(br.readLine());
 			float lon2 = Float.parseFloat(br.readLine());
 			SimpleLinesMarker line = new SimpleLinesMarker(new Location(lat1, lon1), new Location(lat2, lon2));
