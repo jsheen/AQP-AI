@@ -6,7 +6,7 @@ library(deldir)
 library(sp)
 
 # I: Load data
-setwd("~/AQP-AI/precomputeDelaunay")
+setwd("~/AQP-AI/AI")
 rawData <- read.csv("forSimulator.csv", sep=" ")
 colsToKeep <- c("UNICODE", "LATITUDE", "LONGITUDE")
 rawData <- rawData[,colsToKeep]
@@ -87,7 +87,7 @@ vertices <- vertices[c(2, 3, 4, 5),]
 vertices$LATITUDE <- as.numeric(vertices$LATITUDE)
 vertices$LONGITUDE <- as.numeric(vertices$LONGITUDE)
 
-for (i in 1:5) {
+for (i in 1:15) {
   # should return a list of the houses of the biggest triangle
   listHouses <- getBiggestTriangle(rawData, vertices)
   

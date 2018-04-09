@@ -189,14 +189,19 @@ public class SimulatorMCTSNaiveNoGUI {
 		
 		// set the delaunay houses
 		for (House posDel : houseList) {
-			if (posDel.getUnicode().equals("1.13.100.245") | posDel.getUnicode().equals("1.13.100.16") | 
-					posDel.getUnicode().equals("1.13.100.321") | posDel.getUnicode().equals("1.13.100.505") | 
-					posDel.getUnicode().equals("1.13.100.347")) {
+			if (posDel.getUnicode().equals("1.11.1.39") | posDel.getUnicode().equals("1.11.1.28") | 
+					posDel.getUnicode().equals("1.11.1.77C") | posDel.getUnicode().equals("1.11.1.74") | 
+					posDel.getUnicode().equals("1.11.1.47") | posDel.getUnicode().equals("1.11.1.18") |
+					posDel.getUnicode().equals("1.11.1.66") | posDel.getUnicode().equals("1.11.1.15") |
+					posDel.getUnicode().equals("1.11.1.41B") | posDel.getUnicode().equals("1.11.1.9") |
+					posDel.getUnicode().equals("1.11.1.54") | posDel.getUnicode().equals("1.11.1.60") |
+					posDel.getUnicode().equals("1.11.1.49") | posDel.getUnicode().equals("1.11.1.30") |
+					posDel.getUnicode().equals("1.11.1.21")) {
 				delHouses.add(posDel);
 			}
 		}
 		// make sure that the number of delaunay houses is correct
-		if (delHouses.size() != 5) {
+		if (delHouses.size() != 15) {
 			throw new IllegalArgumentException("The number of Delaunay Houses is not correct");
 		}
 	}

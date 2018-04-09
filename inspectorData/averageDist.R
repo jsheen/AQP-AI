@@ -111,7 +111,7 @@ dt.haversine <- function(lat_from, lon_from, lat_to, lon_to, r = 6378137){
   return(2 * atan2(sqrt(a), sqrt(1 - a)) * r)
 }
 
-userActive <- c("21", "8", "9", "14", "20", "24", "2", "18")
+userActive <- c("8", "9", "14", "20", "24", "2", "18")
 visitList <- list()
 distList <- list()
 inspList <- list()
@@ -184,25 +184,25 @@ inspVec <- unlist(inspList, use.names=FALSE)
 sucVec <- inspVec / visitVec
 
 # visit stats
-mean(visitVec) # 23.12
-sd(visitVec) # 5.58
+mean(visitVec) # 23.38
+sd(visitVec) # 5.84
 max(visitVec) # 33
 min(visitVec) # 12
 
 # dist stats
-mean(distVec) # 574.93 m
-sd(distVec) # 295.66 m
+mean(distVec) # 582.46 m
+sd(distVec) # 303.16 m
 max(distVec) # 1484.53 m
 min(distVec) # 118.83 m
 
 # insp stats
-mean(inspVec) # 9.38
-sd(inspVec) # 4.76
-max(inspVec) # 25
+mean(inspVec) # 7.91
+sd(inspVec) # 2.69
+max(inspVec) # 18
 min(inspVec) # 5
 
 # percentage successful
-mean(sucVec) # 43.52 %
-sd(sucVec) # 24.42 %
-max(sucVec) # 100 %
+mean(sucVec) # 36.56 %
+sd(sucVec) # 16.99 %
+max(sucVec) # 90 %
 min(sucVec) # 16.13 %
