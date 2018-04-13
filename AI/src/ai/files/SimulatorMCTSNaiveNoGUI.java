@@ -191,17 +191,12 @@ public class SimulatorMCTSNaiveNoGUI {
 		for (House posDel : houseList) {
 			if (posDel.getUnicode().equals("1.11.1.39") | posDel.getUnicode().equals("1.11.1.28") | 
 					posDel.getUnicode().equals("1.11.1.77C") | posDel.getUnicode().equals("1.11.1.74") | 
-					posDel.getUnicode().equals("1.11.1.47") | posDel.getUnicode().equals("1.11.1.18") |
-					posDel.getUnicode().equals("1.11.1.66") | posDel.getUnicode().equals("1.11.1.15") |
-					posDel.getUnicode().equals("1.11.1.41B") | posDel.getUnicode().equals("1.11.1.9") |
-					posDel.getUnicode().equals("1.11.1.54") | posDel.getUnicode().equals("1.11.1.60") |
-					posDel.getUnicode().equals("1.11.1.49") | posDel.getUnicode().equals("1.11.1.30") |
-					posDel.getUnicode().equals("1.11.1.21")) {
+					posDel.getUnicode().equals("1.11.1.47")) {
 				delHouses.add(posDel);
 			}
 		}
 		// make sure that the number of delaunay houses is correct
-		if (delHouses.size() != 15) {
+		if (delHouses.size() != 5) {
 			throw new IllegalArgumentException("The number of Delaunay Houses is not correct");
 		}
 	}
@@ -471,16 +466,7 @@ public class SimulatorMCTSNaiveNoGUI {
 			// the tree)
 			double ROVal = 0;
 			if (!tree.curr.isRoot()) {
-				double simIter = 5;
-				double sumSimVals = 0;
-				while (simIter > 0) {
-					// get simulation value
-					double simVal = getSimulationValue(tree.curr);
-					sumSimVals = sumSimVals + simVal;
-					// update simulation iteration number
-					simIter = simIter - 1;
-				}
-				ROVal = sumSimVals / 5;
+				ROVal = getSimulationValue(tree.curr);
 			}
 
 			// Part IV: Update
@@ -552,6 +538,61 @@ public class SimulatorMCTSNaiveNoGUI {
 		// add last leaf node to count
 		cnt++;
 		return sum / cnt;
+	}
+	
+	public static void getQValue() {
+		ArrayList<SimplePointMarker> houses = new ArrayList<SimplePointMarker>();
+		ArrayList<SimpleLinesMarker> lines = new ArrayList<SimpleLinesMarker>();
+
+		// draw result
+		House prevMark = null;
+		while (!tree.curr.isLeaf()) {
+			// pause between each decision made
+			try {
+				Thread.sleep(pause);
+			} catch (InterruptedException e) {
+			}
+
+			if (tree.curr.isRoot()) {
+				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Node maxChild = childIter.next();
+				while (childIter.hasNext()) {
+					Node toCheck = childIter.next();
+					if (toCheck.getQVal() > maxChild.getQVal()) {
+						maxChild = toCheck;
+					}
+				}
+				tree.curr = maxChild;
+			} else {
+				prevMark = tree.curr.getHouse();
+
+				// the previous house has now been 'clicked'
+				prevMark.setSearched(true);
+				houses.add(new SimplePointMarker(
+						new Location((double) prevMark.getLatitude(), (double) prevMark.getLongitude())));
+
+				// next house to search (MCTS algorithm)
+				House nextU = null;
+				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Node maxChild = childIter.next();
+				while (childIter.hasNext()) {
+					Node toCheck = childIter.next();
+					if (toCheck.getQVal() > maxChild.getQVal()) {
+						maxChild = toCheck;
+					}
+				}
+				nextU = maxChild.getHouse();
+
+				// update the distance left to travel
+				distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
+
+				lines.add(new SimpleLinesMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude()),
+						new Location(nextU.getLatitude(), nextU.getLongitude())));
+
+				// update the curr of the tree
+				tree.curr = maxChild;
+			}
+		}
 	}
 
 	public static void traverseTree() {
