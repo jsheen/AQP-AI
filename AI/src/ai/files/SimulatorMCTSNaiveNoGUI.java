@@ -443,8 +443,19 @@ public class SimulatorMCTSNaiveNoGUI {
 	}
 
 	public static void makeMCTS() {
+		
+		ArrayList<Double> qValsToWrite = new ArrayList<Double>();
+		
 		while (numIterBuildTree > 0) {
 			System.out.println(numIterBuildTree);
+			
+			// print out the q values every 100 iterations
+            if (numIterBuildTree % 100 == 0) {
+				double qValToWrite = getQValue();
+				qValsToWrite.add(qValToWrite);
+			}
+            
+            
 			// Part I: Selection
 			// find the child that maximizes the algorithm, and eventually the
 			// leaf
@@ -492,6 +503,9 @@ public class SimulatorMCTSNaiveNoGUI {
 		}
 		// print tree to debug / look for errors
 		// tree.curr.printQvalTree(1);
+		
+		// write all the q vals in order to see where curve asymptotes
+		writeQVals(qValsToWrite);
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
@@ -540,21 +554,24 @@ public class SimulatorMCTSNaiveNoGUI {
 		return sum / cnt;
 	}
 	
-	public static void getQValue() {
-		ArrayList<SimplePointMarker> houses = new ArrayList<SimplePointMarker>();
-		ArrayList<SimpleLinesMarker> lines = new ArrayList<SimpleLinesMarker>();
-
+	public static double getQValue() {
+		// set a local curr to be the root of the tree in order to get the q val, don't want to
+		// use the curr of the actual tree
+		Node localcurr = tree.root;
+		
+		// q value
+		double toReturn = 0.0;
+		
 		// draw result
-		House prevMark = null;
-		while (!tree.curr.isLeaf()) {
+		while (!localcurr.isLeaf()) {
 			// pause between each decision made
 			try {
 				Thread.sleep(pause);
 			} catch (InterruptedException e) {
 			}
 
-			if (tree.curr.isRoot()) {
-				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+			if (localcurr.isRoot()) {
+				Iterator<Node> childIter = localcurr.getChildren().iterator();
 				Node maxChild = childIter.next();
 				while (childIter.hasNext()) {
 					Node toCheck = childIter.next();
@@ -562,18 +579,13 @@ public class SimulatorMCTSNaiveNoGUI {
 						maxChild = toCheck;
 					}
 				}
-				tree.curr = maxChild;
+				localcurr = maxChild;
 			} else {
-				prevMark = tree.curr.getHouse();
-
-				// the previous house has now been 'clicked'
-				prevMark.setSearched(true);
-				houses.add(new SimplePointMarker(
-						new Location((double) prevMark.getLatitude(), (double) prevMark.getLongitude())));
+				// update the sum of q values
+				toReturn = toReturn + localcurr.getQVal();
 
 				// next house to search (MCTS algorithm)
-				House nextU = null;
-				Iterator<Node> childIter = tree.curr.getChildren().iterator();
+				Iterator<Node> childIter = localcurr.getChildren().iterator();
 				Node maxChild = childIter.next();
 				while (childIter.hasNext()) {
 					Node toCheck = childIter.next();
@@ -581,18 +593,12 @@ public class SimulatorMCTSNaiveNoGUI {
 						maxChild = toCheck;
 					}
 				}
-				nextU = maxChild.getHouse();
-
-				// update the distance left to travel
-				distanceLeftToTravel = distanceLeftToTravel - prevMark.getDistanceTo(nextU);
-
-				lines.add(new SimpleLinesMarker(new Location(prevMark.getLatitude(), prevMark.getLongitude()),
-						new Location(nextU.getLatitude(), nextU.getLongitude())));
-
+				
 				// update the curr of the tree
-				tree.curr = maxChild;
+				localcurr = maxChild;
 			}
 		}
+		return toReturn;
 	}
 
 	public static void traverseTree() {
@@ -695,7 +701,32 @@ public class SimulatorMCTSNaiveNoGUI {
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
+	}
+	
+	public static void writeQVals(ArrayList<Double> qValsToWrite) {
+		String fileName = new String("qVals" + new Date());
+		fileName = fileName.replaceAll("\\s+", "");
+		fileName = fileName.replaceAll(":", "_");
+		File fileToWrite = new File("qValOverTime/", fileName + ".txt");
 
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(fileToWrite));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+
+			Iterator<Double> iter = qValsToWrite.iterator();
+			while (iter.hasNext()) {
+				writer.write(String.valueOf(iter.next()));
+				writer.write("\n");
+			}
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	// From the given house, get the closest house that is the color given
