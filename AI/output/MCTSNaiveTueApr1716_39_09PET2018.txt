@@ -1,0 +1,17 @@
+Method Used: MCTSNaive
+Number of houses: 94.0
+Number of inspected houses: 12.0
+Number of inspected houses that were infested: 0.0
+Number of most high risk houses NOT inspected: 12.0
+Number of most high risk houses inspected: 7.0
+Number of high risk houses inspected: 3.0
+Number of medium risk houses inspected: 1.0
+Number of low risk houses inspected: 0.0
+Number of most low risk houses inspected: 1.0
+Total distance traveled:  0.5321169555682362
+Max number of houses in a triangle: 19.0
+Average number of houses in a triangle: 3.6153846153846154
+Distance given to travel: 0.58
+Number of simulations: 1.0
+Number of iterations to make MCTS: 500000
+Number of closest neighbors to expand: 3

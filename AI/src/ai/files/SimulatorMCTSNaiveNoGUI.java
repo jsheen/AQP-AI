@@ -59,6 +59,7 @@ public class SimulatorMCTSNaiveNoGUI {
 	static int numIterBuildTreeSave = 50;
 	static HashMap<House, ArrayList<House>> houseMap = new HashMap<House, ArrayList<House>>();
 	static List<House> delHouses = new ArrayList<House>();
+	static int nLvlsPrint = 5;
 
 	// creates houses
 	public static void readHouses() throws IOException {
@@ -506,6 +507,10 @@ public class SimulatorMCTSNaiveNoGUI {
 		
 		// write all the q vals in order to see where curve asymptotes
 		writeQVals(qValsToWrite);
+		
+		// write 5 levels of the tree to see what's going on with it
+		ArrayList<ArrayList<String>> edgeList = tree.getSubTreeEdgeList(tree.root, nLvlsPrint);
+		writeEdgeList(edgeList);
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
@@ -703,6 +708,37 @@ public class SimulatorMCTSNaiveNoGUI {
 		}
 	}
 	
+	public static void writeEdgeList(ArrayList<ArrayList<String>> edgeList) {
+		String fileName = new String("edgeList" + new Date());
+		fileName = fileName.replaceAll("\\s+", "");
+		fileName = fileName.replaceAll(":", "_");
+		File fileToWrite = new File("edgeList/", fileName + ".txt");
+
+		BufferedWriter writer = null;
+		try {
+			writer = new BufferedWriter(new FileWriter(fileToWrite));
+		} catch (IOException e1) {
+			e1.printStackTrace();
+		}
+		try {
+
+			Iterator<ArrayList<String>> iter = edgeList.iterator();
+			while (iter.hasNext()) {
+				ArrayList<String> newEdge = iter.next();
+				writer.write(String.valueOf(newEdge.get(0)));
+				writer.write(" ");
+				writer.write(String.valueOf(newEdge.get(1)));
+				writer.write(" ");
+				writer.write(String.valueOf(newEdge.get(2)));
+				writer.write("\n");
+			}
+			writer.flush();
+			writer.close();
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
+	}
+	
 	public static void writeQVals(ArrayList<Double> qValsToWrite) {
 		String fileName = new String("qVals" + new Date());
 		fileName = fileName.replaceAll("\\s+", "");
@@ -769,6 +805,7 @@ public class SimulatorMCTSNaiveNoGUI {
 		String cpToParse = null;
 		String nNeighExpandToParse = null;
 		String numIterBuildTreeToParse = null;
+		String numLevelsPrint = null;
 		try {
 			pauseToParse = br.readLine();
 			pauseToParse = pauseToParse.trim();
@@ -793,6 +830,10 @@ public class SimulatorMCTSNaiveNoGUI {
 			numIterBuildTreeToParse = br.readLine();
 			numIterBuildTreeToParse = numIterBuildTreeToParse.trim();
 			numIterBuildTreeToParse = numIterBuildTreeToParse.replaceAll("NUM_ITER_BUILD_TREE = ", "");
+			
+			numLevelsPrint = br.readLine();
+			numLevelsPrint = numLevelsPrint.trim();
+			numLevelsPrint = numLevelsPrint.replaceAll("NUM_LEVELS_PRINT = ", "");
 		} catch (IOException e1) {
 			e1.printStackTrace();
 		}
@@ -805,6 +846,7 @@ public class SimulatorMCTSNaiveNoGUI {
 		nNeighExpand = Integer.parseInt(nNeighExpandToParse);
 		numIterBuildTree = Integer.parseInt(numIterBuildTreeToParse);
 		numIterBuildTreeSave = Integer.parseInt(numIterBuildTreeToParse);
+		nLvlsPrint = Integer.parseInt(numLevelsPrint);
 
 		// invoke MCTS function
 		tree = new MCTSTree((float) distanceLeftToTravelSave);
