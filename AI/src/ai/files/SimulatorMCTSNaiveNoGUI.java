@@ -510,7 +510,14 @@ public class SimulatorMCTSNaiveNoGUI {
 		
 		// write 5 levels of the tree to see what's going on with it
 		ArrayList<ArrayList<String>> edgeList = tree.getSubTreeEdgeList(tree.root, nLvlsPrint);
-		writeEdgeList(edgeList);
+		HashSet<String> nodesOfEdgeList = new HashSet<String>();
+		for (int i=0; i < edgeList.size(); i++) {
+			for (int j=0; j < 2; j++) {
+				nodesOfEdgeList.add(edgeList.get(i).get(j));
+			}
+		}
+		
+		writeEdgeList(edgeList, nodesOfEdgeList.size());
 	}
 
 	public static double getSimulationValue(Node toSimulate) {
@@ -708,11 +715,11 @@ public class SimulatorMCTSNaiveNoGUI {
 		}
 	}
 	
-	public static void writeEdgeList(ArrayList<ArrayList<String>> edgeList) {
+	public static void writeEdgeList(ArrayList<ArrayList<String>> edgeList, int nNodes) {
 		String fileName = new String("edgeList" + new Date());
 		fileName = fileName.replaceAll("\\s+", "");
 		fileName = fileName.replaceAll(":", "_");
-		File fileToWrite = new File("edgeList/", fileName + ".txt");
+		File fileToWrite = new File("edgeList/", fileName + ".dl");
 
 		BufferedWriter writer = null;
 		try {
@@ -721,6 +728,15 @@ public class SimulatorMCTSNaiveNoGUI {
 			e1.printStackTrace();
 		}
 		try {
+			writer.write("dl");
+			writer.write("\n");
+			writer.write("format=edgelist1");
+			writer.write("\n");
+			writer.write("n=");
+			writer.write(String.valueOf(nNodes));
+			writer.write("\n");
+			writer.write("data:");
+			writer.write("\n");
 
 			Iterator<ArrayList<String>> iter = edgeList.iterator();
 			while (iter.hasNext()) {
@@ -730,7 +746,9 @@ public class SimulatorMCTSNaiveNoGUI {
 				writer.write(String.valueOf(newEdge.get(1)));
 				writer.write(" ");
 				writer.write(String.valueOf(newEdge.get(2)));
-				writer.write("\n");
+				if (iter.hasNext()) {
+					writer.write("\n");
+				}
 			}
 			writer.flush();
 			writer.close();
