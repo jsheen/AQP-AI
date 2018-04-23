@@ -16,16 +16,22 @@ public class MCTSTree {
 	public ArrayList<ArrayList<String>> getSubTreeEdgeList(Node currNode, int level) {
 		ArrayList<ArrayList<String>> edges = new ArrayList<ArrayList<String>>();
 		if (level == 0 | currNode.isLeaf()) {
-			ArrayList<String> toAdd = new ArrayList<String>();
-			toAdd.add(currNode.getParent().getHouse().getUnicode());
-			toAdd.add(currNode.getHouse().getUnicode());
-			toAdd.add(String.valueOf(currNode.getQVal()));
-
-			edges.add(toAdd);
-
 			return edges;
 		} else {
 			for (Node child : currNode.getChildren()) {
+				ArrayList<String> toAdd = new ArrayList<String>();
+				
+				if (currNode.isRoot()) {
+					toAdd.add("root");
+				} else {
+					toAdd.add(currNode.getHouse().getUnicode());
+				}
+				
+				toAdd.add(child.getHouse().getUnicode());
+				toAdd.add(String.valueOf(child.getQVal()));
+
+				edges.add(toAdd);
+				
 				edges.addAll(getSubTreeEdgeList(child, level - 1));
 			}
 			return edges;
