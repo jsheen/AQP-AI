@@ -60,6 +60,9 @@ public class SimulatorMCTSNaiveNoGUI {
 	static HashMap<House, ArrayList<House>> houseMap = new HashMap<House, ArrayList<House>>();
 	static List<House> delHouses = new ArrayList<House>();
 	static int nLvlsPrint = 5;
+	
+	// blocks
+	static HashMap<Block, ArrayList<Block>> blocks = new HashMap<Block, ArrayList<Block>>();;
 
 	// creates houses
 	public static void readHouses() throws IOException {
@@ -200,6 +203,10 @@ public class SimulatorMCTSNaiveNoGUI {
 		if (delHouses.size() != 5) {
 			throw new IllegalArgumentException("The number of Delaunay Houses is not correct");
 		}
+		
+		// get all block information
+		PrecomputeBlockMatrix pcbm = new PrecomputeBlockMatrix();
+		blocks = pcbm.getBlockMatrix();
 	}
 
 	// get closest neighbors helper function
